@@ -61,16 +61,80 @@ void monitor_throttle_fps() {
 	nanosleep(&spec, NULL);
 }
 
+uint8_t tmp_ioregs[0xffff];
 uint8_t monitor_rd_mem(uint16_t addr) {
+	if ((addr >= 0x8000 && addr <= 0x9fff) ||
+			(addr >= 0xfe00 && addr <= 0xfe9f) ||
+			(addr >= 0xff40 && addr <= 0xff4b)) {
+		return ppu_rd(addr);
+	}
+	if (addr >= 0xc000 && addr <= 0xdfff) {
+		return cpu_rd(addr);
+	}
+	if (addr >= 0xff80 && addr <= 0xfffe) {
+		return cpu_rd(addr);
+	}
 	if (addr <= 0xbfff) {
 		return mbc_impl->rd_mem(addr);
 	}
-	return 0;
+
+	switch (addr) {
+		case 0xffff:
+		case 0xff0f:
+		case 0xff04:
+		case 0xff05:
+		case 0xff06:
+		case 0xff07:
+		case 0xff50:
+			return cpu_rd(addr);
+		default:
+			return tmp_ioregs[addr];
+	}
 }
 
 void monitor_wr_mem(uint16_t addr, uint8_t value) {
-	if (addr <= 0xbfff) {
+	if (addr == 0xffff) {
+		cpu_wr(addr, value);
+	}
+	else if (addr == 0xff0f) {
+		cpu_wr(addr, value);
+	}
+	else if (addr == 0xff04) {
+		cpu_wr(addr, value);
+	}
+	else if (addr == 0xff05) {
+		cpu_wr(addr, value);
+	}
+	else if (addr == 0xff06) {
+		cpu_wr(addr, value);
+	}
+	else if (addr == 0xff07) {
+		cpu_wr(addr, value);
+	}
+	else if (addr == 0xff50) {
+		cpu_wr(addr, value);
 		mbc_impl->wr_mem(addr, value);
+	}
+	else if ((addr >= 0x8000 && addr <= 0x9fff) ||
+			(addr >= 0xfe00 && addr <= 0xfe9f) ||
+			(addr >= 0xff40 && addr <= 0xff4b)) {
+		ppu_wr(addr, value);
+	}
+	else if (addr >= 0xc000 && addr <= 0xdfff) {
+		cpu_wr(addr, value);
+	}
+	else if (addr >= 0xff80 && addr <=	0xfffe) {
+		cpu_wr(addr, value);
+	}
+	else if (addr <= 0xbfff) {
+		mbc_impl->wr_mem(addr, value);
+	}
+	else {
+		if (addr == 0xff00) {
+			tmp_ioregs[addr] = value&0x30;
+		}
+		else
+			tmp_ioregs[addr] = value;
 	}
 }
 

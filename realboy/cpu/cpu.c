@@ -16,6 +16,8 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <stdio.h>
+
 #include "cpu.h"
 
 #include "monitor.h"
@@ -24,13 +26,10 @@
 // holds registers and other state
 cpu_t cpu;
 
-void cpu_disable_intr() {
-	cpu.state.ime_enabled = false;
-}
-
-void cpu_enable_intr() {
-	cpu.state.ime_enabled = true;
-}
+enum tac_bitmask {
+	TAC_BITMASK_CLOCK_SELECT = 0x3,
+	TAC_BITMASK_TIMA_ENABLE = 0x4
+};
 
 static void process_intr(uint8_t interrupt_bit) {
 	enum interrupts {
@@ -84,8 +83,101 @@ static void handle_intrs(uint8_t cycles) {
 	}
 }
 
+void cpu_disable_intr() {
+	cpu.state.ime_enabled = false;
+}
+
+void cpu_enable_intr() {
+	cpu.state.ime_enabled = true;
+}
+
 void cpu_request_intr(enum interrupt_mask im) {
 	cpu.state.if_reg |= im;
+}
+
+uint8_t cpu_rd(uint16_t addr) {
+	struct cpu_state *state = &cpu.state;
+
+	if (addr >= 0xc000 && addr <= 0xdfff) {
+		return cpu.wram[addr-0xc000];
+	}
+	if (addr >= 0xff80 && addr <=	0xfffe) {
+		return cpu.hram[addr-0xff80];
+	}
+
+	switch (addr) {
+		case 0xffff:
+			return state->ie_reg;
+		case 0xff0f:
+			return state->if_reg;
+		case 0xff04:
+			return state->div_reg;
+		case 0xff05:
+			return state->tima_reg;
+		case 0xff06:
+			return state->tma_reg;
+		case 0xff07:
+			return state->tac_reg;
+		case 0xff50:
+			return state->disable_bootrom;
+		default:
+			fprintf(stderr, "error: cpu_rd()");
+			return 0;
+	}
+}
+
+void cpu_wr(uint16_t addr, uint8_t value) {
+	struct cpu_state *state = &cpu.state;
+
+	if (addr >= 0xc000 && addr <= 0xdfff) {
+		cpu.wram[addr-0xc000] = value;
+		return;
+	}
+	if (addr >= 0xff80 && addr <= 0xfffe) {
+		cpu.hram[addr-0xff80] = value;
+		return;
+	}
+
+	switch (addr) {
+		case 0xffff:
+			state->ie_reg = value;
+			break;
+		case 0xff0f:
+			state->if_reg = value & 0x1f;
+			break;
+		case 0xff04:
+			state->div_reg = 0;
+			break;
+		case 0xff05:
+			state->tima_reg = value;
+			break;
+		case 0xff06:
+			state->tma_reg = value;
+			break;
+		case 0xff07:
+			state->tac_reg = value & 7;
+			state->tima_enabled = value & TAC_BITMASK_TIMA_ENABLE;
+			switch (value & TAC_BITMASK_CLOCK_SELECT) {
+				case 0:
+					state->tac_divider = 256;
+					break;
+				case 1:
+					state->tac_divider = 4;
+					break;
+				case 2:
+					state->tac_divider = 16;
+					break;
+				case 3:
+					state->tac_divider = 64;
+					break;
+			}
+			break;
+		case 0xff50:
+			state->disable_bootrom = value;
+			break;
+		default:
+			fprintf(stderr, "error: cpu_wr() addr %d value %d", addr, value);
+	}
 }
 
 int cpu_exec_next() {

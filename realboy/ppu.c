@@ -17,6 +17,7 @@
  */
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include "ppu.h"
 
@@ -168,6 +169,144 @@ static void change_phase() {
 
 uint64_t ppu_get_frame_count() {
 	return ppu.frame_count;
+}
+
+static void ppu_reset() {
+	ppu.dots_remaining = DOTS_OAM;
+	ppu.mode = PPU_OAM;
+	ppu.regs.ly = 0;
+}
+
+static void wr_reg(uint16_t addr, uint8_t value) {
+	struct ppu_regs *regs = &ppu.regs;
+
+	switch (addr) {
+		case 0xff40:
+			// turn on/off ppu
+			if ((regs->lcdc & 0x80) != (value & 0x80)) {
+				ppu_reset();
+				if (!(value & 0x80))
+					regs->stat &= ~3;
+			}
+			regs->lcdc = value;
+			break;
+		case 0xff41:
+			regs->stat = value;
+			break;
+		case 0xff42:
+			regs->scy = value;
+			break;
+		case 0xff43:
+			regs->scx = value;
+			break;
+		case 0xff44:
+			regs->ly = value;
+			break;
+		case 0xff45:
+			regs->lyc = value;
+			break;
+		case 0xff46:
+			{
+			uint16_t addr = value*0x100;
+			for (int i = 0; i < 0xa0; i++)
+				monitor_wr_mem(0xfe00+i, monitor_rd_mem(addr+i));
+			break;
+			}
+		case 0xff47:
+			regs->bgp = value;
+			break;
+		case 0xff48:
+			regs->obp0 = value;
+			break;
+		case 0xff49:
+			regs->obp1 = value;
+			break;
+		case 0xff4a:
+			regs->wy = value;
+			break;
+		case 0xff4b:
+			regs->wx = value;
+			break;
+		default:
+			fprintf(stderr, "error: ppu_wd_reg()");
+	}
+}
+
+void ppu_wr(uint16_t addr, uint8_t value) {
+	if (addr >= 0xff40) {
+		wr_reg(addr, value);
+	}
+	else if (addr >= 0x8000 && addr <= 0x97ff) {
+		ppu.tile_data[addr-0x8000] = value;
+	}
+	else if (addr >= 0x9800 && addr <= 0x9bff) {
+		ppu.tile_map1[addr-0x9800] = value;
+	}
+	else if (addr >= 0x9c00 && addr <= 0x9fff) {
+		ppu.tile_map2[addr-0x9c00] = value;
+	}
+	else if (addr >= 0xfe00 && addr <= 0xfe9f) {
+		ppu.oam[addr-0xfe00] = value;
+	}
+	else {
+		fprintf(stderr, "error: ppu_wr()");
+	}
+}
+
+static uint8_t rd_reg(uint16_t addr) {
+	struct ppu_regs *regs = &ppu.regs;
+
+	switch (addr) {
+		case 0xff40:
+			return regs->lcdc;
+		case 0xff41:
+			return regs->stat;
+		case 0xff42:
+			return regs->scy;
+		case 0xff43:
+			return regs->scx;
+		case 0xff44:
+			return regs->ly;
+		case 0xff45:
+			return regs->lyc;
+		case 0xff46:
+			return regs->dma;
+		case 0xff47:
+			return regs->bgp;
+		case 0xff48:
+			return regs->obp0;
+		case 0xff49:
+			return regs->obp1;
+		case 0xff4a:
+			return regs->wy;
+		case 0xff4b:
+			return regs->wx;
+		default:
+			fprintf(stderr, "error: rd_reg()");
+			return 0;
+	}
+}
+
+uint8_t ppu_rd(uint16_t addr) {
+	if (addr >= 0xff40) {
+		return rd_reg(addr);
+	}
+	else if (addr >= 0x8000 && addr <= 0x97ff) {
+		return ppu.tile_data[addr-0x8000];
+	}
+	else if (addr >= 0x9800 && addr <= 0x9bff) {
+		return ppu.tile_map1[addr-0x9800];
+	}
+	else if (addr >= 0x9c00 && addr <= 0x9fff) {
+		return ppu.tile_map2[addr-0x9c00];
+	}
+	else if (addr >= 0xfe00 && addr <= 0xfe9f) {
+		return ppu.oam[addr-0xfe00];
+	}
+	else {
+		fprintf(stderr, "error: ppu_rd()");
+		return 0;
+	}
 }
 
 void ppu_refresh(uint8_t ticks) {

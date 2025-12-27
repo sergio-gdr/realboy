@@ -27,4 +27,8 @@ uint64_t ppu_get_frame_count();
 
 void ppu_refresh(uint8_t ticks);
 
+// access ppu's internal state.
+uint8_t ppu_rd(uint16_t addr);
+void ppu_wr(uint16_t addr, uint8_t value);
+
 #endif

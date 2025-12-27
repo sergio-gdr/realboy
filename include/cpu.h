@@ -19,6 +19,8 @@
 #ifndef RB_CPU_H
 #define RB_CPU_H
 
+#include <stdint.h>
+
 // for requesting interrupts when calling cpu_request_intr().
 enum interrupt_mask {
 	REQUEST_INTR_VBLANK = 0x1,
@@ -29,4 +31,9 @@ enum interrupt_mask {
 
 int cpu_exec_next();
 void cpu_request_intr(enum interrupt_mask im);
+
+// access cpu's internal state.
+void cpu_wr(uint16_t addr, uint8_t value);
+uint8_t cpu_rd(uint16_t addr);
+
 #endif
