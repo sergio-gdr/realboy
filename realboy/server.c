@@ -16,22 +16,20 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef RB_MONITOR_H
-#define RB_MONITOR_H
+#include <libemu.h>
+#include <pthread.h>
 
-#include <stdint.h>
+bool client_connected;
 
-#include <linux/input.h>
+bool server_is_client_connected() {
+	return client_connected;
+}
 
-int monitor_init(bool wait_for_client);
-void monitor_fini();
-int monitor_run();
-
-void monitor_throttle_fps();
-
-uint8_t monitor_rd_mem(uint16_t addr);
-void monitor_wr_mem(uint16_t addr, uint8_t value);
-
-void monitor_set_key(struct input_event *ev);
-
-#endif
+int server_init(bool wait_for_client) {
+	int ret = emu_init(true);
+	if (wait_for_client) {
+		if ( (ret = emu_wait_for_client()) != -1)
+			client_connected = true;
+	}
+	return ret;
+}

@@ -222,7 +222,17 @@ int monitor_run() {
 void monitor_fini() {
 }
 
-int monitor_init() {
+int monitor_init(bool wait_for_client) {
 	mbc_impl = mbc_init();
-	return 0;
+
+	int ret = 0;
+#ifdef HAVE_LIBEMU
+	breakpoint_list = create_list();
+	if (!breakpoint_list) {
+		goto out;
+	}
+	ret = server_init(wait_for_client);
+out:
+#endif
+	return ret;
 }

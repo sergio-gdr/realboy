@@ -38,6 +38,8 @@ static pthread_mutex_t mtx_init = PTHREAD_MUTEX_INITIALIZER;
 static bool init_success;
 static pthread_t epoll_thread;
 
+static bool is_server_mode;
+
 // populate at compile time.
 // the __attribute__(section) attribute tells the compiler to create a contiguous
 // area in the section "fds_to_poll" (file descriptors to poll), and a pair of symbols
@@ -99,6 +101,18 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 
+	int option;
+	do {
+		option = getopt(argc, argv, "s");
+		switch (option) {
+			case 's':
+				is_server_mode = true;
+				break;
+			default:
+				break;
+		}
+	} while (option != -1);
+
 	if (optind < argc) {
 		if ((rom = fopen(argv[optind], "r")) == NULL) {
 			perror("fopen()");
@@ -139,7 +153,7 @@ int main(int argc, char *argv[]) {
 		goto err5;
 	}
 
-	ret = monitor_init();
+	ret = monitor_init(is_server_mode);
 	if (ret == -1) {
 		goto err6;
 	}

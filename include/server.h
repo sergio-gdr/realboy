@@ -16,22 +16,10 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef RB_MONITOR_H
-#define RB_MONITOR_H
+#ifndef RB_SERVER_H
+#define RB_SERVER_H
 
-#include <stdint.h>
-
-#include <linux/input.h>
-
-int monitor_init(bool wait_for_client);
-void monitor_fini();
-int monitor_run();
-
-void monitor_throttle_fps();
-
-uint8_t monitor_rd_mem(uint16_t addr);
-void monitor_wr_mem(uint16_t addr, uint8_t value);
-
-void monitor_set_key(struct input_event *ev);
+int server_init(bool wait_for_client);
+bool server_is_client_connected();
 
 #endif
