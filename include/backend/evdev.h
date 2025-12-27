@@ -16,37 +16,11 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <getopt.h>
-#include <stdio.h>
+#ifndef RB_EVDEV_H
+#define RB_EVDEV_H
 
-#include "backend/evdev.h"
+#include <libevdev/libevdev.h>
 
-FILE *rom;
-
-int main(int argc, char *argv[]) {
-	int ret = 0;
-
-	if (argc == 1) {
-		return 0;
-	}
-
-	if (optind < argc) {
-		if ((rom = fopen(argv[optind], "r")) == NULL) {
-			perror("fopen()");
-			ret = -1;
-			goto err1;
-		}
-	}
-
-	ret = evdev_backend_init();
-	if (ret == -1) {
-		goto err2;
-	}
-
-err3:
-	evdev_backend_fini();
-err2:
-	fclose(rom);
-err1:
-	return ret;
-}
+int evdev_backend_init();
+void evdev_backend_fini();
+#endif
