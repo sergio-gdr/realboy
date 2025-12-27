@@ -28,4 +28,5 @@ enum interrupt_mask {
 };
 
 int cpu_exec_next();
+void cpu_request_intr(enum interrupt_mask im);
 #endif

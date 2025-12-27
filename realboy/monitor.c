@@ -16,13 +16,49 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#define _POSIX_C_SOURCE 200809L
+#include <stdio.h>
+#include <time.h>
+
 #include "cpu.h"
 #include "mbc.h"
+
+#include "ppu.h"
 
 static mbc_iface_t *mbc_impl;
 
 static void exec_next() {
 	int cycles = cpu_exec_next();
+	ppu_refresh(cycles);
+}
+
+void monitor_throttle_fps() {
+	static uint64_t frame_count_last = 0;
+	static struct timespec last;
+	static int sleep_factor = 60;
+
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+
+	if (!frame_count_last) {
+		frame_count_last = ppu_get_frame_count();
+		last = now;
+		return;
+	}
+
+	if (now.tv_sec > last.tv_sec) {
+		uint64_t curr_frame_count = ppu_get_frame_count();
+		uint64_t fps = curr_frame_count - frame_count_last;
+		printf("FPS %lu sleep_factor %d\n", fps, sleep_factor);
+		if (fps > 60)
+			sleep_factor--;
+		else if (fps < 60)
+			sleep_factor++;
+		frame_count_last = curr_frame_count;
+		last = now;
+	}
+	struct timespec spec = { .tv_sec = 0, .tv_nsec = 1000000000/sleep_factor };
+	nanosleep(&spec, NULL);
 }
 
 uint8_t monitor_rd_mem(uint16_t addr) {

@@ -25,6 +25,8 @@ int monitor_init();
 void monitor_fini();
 int monitor_run();
 
+void monitor_throttle_fps();
+
 uint8_t monitor_rd_mem(uint16_t addr);
 void monitor_wr_mem(uint16_t addr, uint8_t value);
 

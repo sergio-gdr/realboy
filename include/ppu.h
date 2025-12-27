@@ -19,4 +19,12 @@
 #ifndef RB_PPU_H
 #define RB_PPU_H
 
+#include <stdint.h>
+
+// get the total number of frames since the start
+// of the emulation.
+uint64_t ppu_get_frame_count();
+
+void ppu_refresh(uint8_t ticks);
+
 #endif
