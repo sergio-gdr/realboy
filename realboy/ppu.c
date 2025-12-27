@@ -24,6 +24,7 @@
 
 #include "cpu.h"
 #include "monitor.h"
+#include "render.h"
 
 enum ppu_mode {
 	PPU_HBLANK=0,
@@ -308,6 +309,7 @@ static void ppu_render_line() {
 				if (!obj_pixel || (win_indx != 0))
 					final_pixel = win_pixel;
 			}
+			render_draw_pixel(i+j, regs->ly, final_pixel);
 		}
 	}
 }
@@ -319,6 +321,7 @@ static void change_phase() {
 			hblank_end_cycle();
 			break;
 		case PPU_VBLANK:
+			render_draw_framebuffer();
 			vblank_end_cycle();
 			break;
 		case PPU_OAM:

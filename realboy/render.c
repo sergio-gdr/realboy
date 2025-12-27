@@ -18,6 +18,7 @@
 
 #define _GNU_SOURCE
 
+#include <assert.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,6 +38,19 @@ typedef struct {
 } render_t;
 render_t render;
 
+pixman_image_t *mask;
+uint8_t *dmg_buf;
+void render_draw_pixel(int x, int y, uint32_t pixel) {
+	assert(x <= 160 && y <= 144);
+	*(uint32_t*)(dmg_buf+(y*160*(32/8))+(x*sizeof(uint32_t))) = pixel;
+}
+
+void render_draw_framebuffer() {
+	pixman_image_composite32(PIXMAN_OP_SRC, render.src, nullptr,
+		render.dst, 0, 0, 0, 0, 0, 0, render.framebuffer.width,
+		render.framebuffer.height);
+}
+
 struct framebuffer render_get_framebuffer_dimensions() {
 	return render.framebuffer;
 }
@@ -46,6 +60,10 @@ int render_get_framebuffer_fd() {
 }
 
 void render_fini() {
+	pixman_image_set_transform(render.src, NULL);
+	free(render.src);
+	free(render.dst);
+	free(dmg_buf);
 	munmap(render.data, render.framebuffer.size * sizeof(uint32_t));
 	close(render.framebuffer_fd);
 }
@@ -77,6 +95,23 @@ int render_init() {
 		perror("malloc()");
 		goto err;
 	}
+	dmg_buf = src;
+	render.src = pixman_image_create_bits(PIXMAN_x8r8g8b8, 160, 144, src, 160*(32/8));
+	if (!render.src) {
+		perror("pixman_image_create_bits()");
+		goto err;
+	}
+	render.dst = pixman_image_create_bits(PIXMAN_x8r8g8b8, framebuf->width, framebuf->height, render.data, framebuf->stride);
+	if (!render.dst) {
+		perror("pixman_image_create_bits()");
+		goto err;
+	}
+
+	pixman_transform_t scale;
+	pixman_transform_init_identity(&scale);
+	pixman_transform_init_scale(&scale, (1<<16)/4, (1<<16)/4);
+	pixman_image_set_transform(render.src, &scale);
+	pixman_image_set_filter(render.src, PIXMAN_FILTER_BILINEAR, nullptr, 0);
 
 	return 0;
 err:

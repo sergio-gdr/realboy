@@ -20,6 +20,7 @@
 #define RB_RENDER_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 struct framebuffer {
 	int fd;
@@ -34,4 +35,6 @@ void render_fini();
 
 struct framebuffer render_get_framebuffer_dimensions();
 int render_get_framebuffer_fd();
+void render_draw_pixel(int x, int y, uint32_t pixel);
+void render_draw_framebuffer();
 #endif
