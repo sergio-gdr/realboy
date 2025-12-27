@@ -16,10 +16,26 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <getopt.h>
 #include <stdio.h>
 
-int main(int argc, char *argv[]) {
-	printf("Hello, RealBoy!\n");
+FILE *rom;
 
-	return 0;
+int main(int argc, char *argv[]) {
+	int ret = 0;
+
+	if (argc == 1) {
+		return 0;
+	}
+
+	if (optind < argc) {
+		if ((rom = fopen(argv[optind], "r")) == NULL) {
+			perror("fopen()");
+			ret = -1;
+			goto err1;
+		}
+	}
+
+err1:
+	return ret;
 }
