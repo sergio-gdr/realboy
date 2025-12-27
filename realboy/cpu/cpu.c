@@ -32,6 +32,58 @@ void cpu_enable_intr() {
 	cpu.state.ime_enabled = true;
 }
 
+static void process_intr(uint8_t interrupt_bit) {
+	enum interrupts {
+		VBLANK_INTERRUPT = 0x01,
+		LCD_INTERRUPT = 0x02,
+		TIMER_INTERRUPT = 0x04,
+		SERIAL_INTERRUPT = 0x08,
+		JOYPAD_INTERRUPT = 0x10
+	};
+
+	uint16_t interrupt_handler_addr;
+	switch (interrupt_bit) {
+		case VBLANK_INTERRUPT:
+			interrupt_handler_addr = 0x40;
+			break;
+		case LCD_INTERRUPT:
+			interrupt_handler_addr = 0x48;
+			break;
+		case TIMER_INTERRUPT:
+			interrupt_handler_addr = 0x50;
+			break;
+		case SERIAL_INTERRUPT:
+			interrupt_handler_addr = 0x58;
+			break;
+		case JOYPAD_INTERRUPT:
+			interrupt_handler_addr = 0x60;
+			break;
+	}
+	REG_SP -= 2;
+	WR_WORD(REG_SP, REG_PC);
+	cpu.state.registers.pc = interrupt_handler_addr;
+}
+
+static void handle_intrs(uint8_t cycles) {
+	struct cpu_state *state = &cpu.state;
+
+	if (state->ime_enabled || state->is_halted) {
+		uint8_t intr_mask = 1;
+		while (intr_mask) {
+			if (state->if_reg & state->ie_reg & intr_mask) {
+				state->is_halted = false;
+				if (state->ime_enabled) {
+					state->ime_enabled = false;
+					state->if_reg &= ~intr_mask; // disable the corresponding interrupt request
+					state->is_halted = false;
+					process_intr(intr_mask);
+				}
+			}
+			intr_mask <<=1; // this is guaranteed to be 0 after 0b10000000 << 1
+		}
+	}
+}
+
 void cpu_request_intr(enum interrupt_mask im) {
 	cpu.state.if_reg |= im;
 }
@@ -78,6 +130,9 @@ int cpu_exec_next() {
 			state->tac_counter += cycles;
 		}
 	}
+
+	// handle interrupts
+	handle_intrs(cycles);
 
 	return cycles;
 }
