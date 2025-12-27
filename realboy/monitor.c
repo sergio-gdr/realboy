@@ -20,6 +20,15 @@
 
 static mbc_iface_t *mbc_impl;
 
+static void exec_next() {
+}
+
+int monitor_run() {
+	while (1) {
+		exec_next();
+	}
+}
+
 void monitor_fini() {
 }
 

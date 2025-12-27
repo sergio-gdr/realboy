@@ -21,4 +21,5 @@
 
 int monitor_init();
 void monitor_fini();
+int monitor_run();
 #endif

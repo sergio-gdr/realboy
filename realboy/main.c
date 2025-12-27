@@ -16,8 +16,11 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#define _POSIX_C_SOURCE 200809L
 #include <getopt.h>
 #include <pthread.h>
+#include <setjmp.h>
+#include <signal.h>
 #include <stdio.h>
 #include <sys/epoll.h>
 
@@ -27,6 +30,8 @@
 #include "render.h"
 
 FILE *rom;
+
+static sigjmp_buf fini;
 
 static pthread_cond_t cond_init = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t mtx_init = PTHREAD_MUTEX_INITIALIZER;
@@ -73,6 +78,10 @@ static void *io_poll(void *val) {
 		}
 	}
 	pthread_exit(NULL);
+}
+
+static void sigterm_handler(int sig) {
+	longjmp(fini, 1);
 }
 
 int main(int argc, char *argv[]) {
@@ -122,6 +131,19 @@ int main(int argc, char *argv[]) {
 	ret = monitor_init();
 	if (ret == -1) {
 		goto err6;
+	}
+
+	// we handle SIGINT so that the user can ctrl+c to quit.
+	// setjmp() will return 0, so monitor_run() will be called.
+	//
+	// if the user hits ctrl+c, sigterm_handler() will be called.
+	// that function calls longjmp(), which will transfer control to the point where setjmp()
+	// is called, effectively faking a second return from it, but this time the return value
+	// would be 1, skipping the monitor_run() call and continuing to the cleanup code.
+	struct sigaction sig = { .sa_handler = sigterm_handler };
+	sigaction(SIGINT, &sig, NULL);
+	if ((ret = setjmp(fini)) == 0) {
+		ret = monitor_run();
 	}
 
 	monitor_fini();
