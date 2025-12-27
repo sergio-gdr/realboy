@@ -122,6 +122,9 @@ int main(int argc, char *argv[]) {
 	if (ret == -1) {
 		goto err4;
 	}
+	struct framebuffer fb = render_get_framebuffer_dimensions();
+	fb.fd = render_get_framebuffer_fd();
+	wayland_backend_set_framebuffer(&fb);
 
 	// wait for the poll thread to initialize.
 	pthread_mutex_lock(&mtx_init);

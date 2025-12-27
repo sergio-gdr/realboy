@@ -19,10 +19,13 @@
 #ifndef RB_BACKEND_WAYLAND_H
 #define RB_BACKEND_WAYLAND_H
 
+#include "render.h"
+
 int wayland_backend_init();
 void wayland_backend_fini();
 int wayland_backend_get_fd();
 bool wayland_backend_is_focus();
 void wayland_backend_dispatch();
+void wayland_backend_set_framebuffer(const struct framebuffer *fb);
 
 #endif

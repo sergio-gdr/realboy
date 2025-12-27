@@ -37,6 +37,14 @@ typedef struct {
 } render_t;
 render_t render;
 
+struct framebuffer render_get_framebuffer_dimensions() {
+	return render.framebuffer;
+}
+
+int render_get_framebuffer_fd() {
+	return render.framebuffer_fd;
+}
+
 void render_fini() {
 	munmap(render.data, render.framebuffer.size * sizeof(uint32_t));
 	close(render.framebuffer_fd);

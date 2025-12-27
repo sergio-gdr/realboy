@@ -31,4 +31,7 @@ struct framebuffer {
 
 int render_init();
 void render_fini();
+
+struct framebuffer render_get_framebuffer_dimensions();
+int render_get_framebuffer_fd();
 #endif

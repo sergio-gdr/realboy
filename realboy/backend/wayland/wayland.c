@@ -23,7 +23,11 @@
 #include "wayland-client.h"
 #include "xdg-shell-client-protocol.h"
 
+#include "render.h"
+
 typedef struct {
+	struct framebuffer framebuffer;
+
 	struct wl_display *display;
 	struct wl_compositor *compositor;
 	struct wl_keyboard *keyboard;
@@ -171,6 +175,12 @@ int wayland_backend_get_fd() {
 
 bool wayland_backend_is_focus() {
 	return wayland_backend.is_surface_focused;
+}
+
+void wayland_backend_set_framebuffer(const struct framebuffer *fb) {
+	wayland_backend_t *back = &wayland_backend;
+
+	back->framebuffer = *fb;
 }
 
 void wayland_backend_dispatch() {
