@@ -19,7 +19,13 @@
 #ifndef RB_MONITOR_H
 #define RB_MONITOR_H
 
+#include <stdint.h>
+
 int monitor_init();
 void monitor_fini();
 int monitor_run();
+
+uint8_t monitor_rd_mem(uint16_t addr);
+void monitor_wr_mem(uint16_t addr, uint8_t value);
+
 #endif

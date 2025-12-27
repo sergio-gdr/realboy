@@ -18,6 +18,46 @@
 
 #include "cpu.h"
 
+#include "monitor.h"
+
 // main cpu structure
 // holds registers and other state
 cpu_t cpu;
+
+void cpu_disable_intr() {
+	cpu.state.ime_enabled = false;
+}
+
+void cpu_enable_intr() {
+	cpu.state.ime_enabled = true;
+}
+
+int cpu_exec_next() {
+	int cycles = 0;
+	bool op_is_prefix = false;
+
+	// fetch opcode
+	if (!cpu.state.is_halted) {
+		uint8_t op = monitor_rd_mem(REG_PC);
+		//printf("EXECUTING %x\n", REG_PC);
+		REG_PC++;
+		if (op == OPCODE_PREFIX) {
+			op = monitor_rd_mem(REG_PC);
+			REG_PC++;
+			op_is_prefix = true;
+		}
+
+		// execute
+		cycles = ops_table_dispatch(op, op_is_prefix);
+		cpu.state.cycles += cycles;
+	}
+	else {
+		cycles = 3;
+	}
+
+	return cycles;
+}
+
+void cpu_halt() {
+	cpu.state.is_halted = true;
+}

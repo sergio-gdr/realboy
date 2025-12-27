@@ -19,4 +19,5 @@
 #ifndef RB_CPU_H
 #define RB_CPU_H
 
+int cpu_exec_next();
 #endif

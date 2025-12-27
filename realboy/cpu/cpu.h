@@ -24,6 +24,31 @@
 
 #include "../include/cpu.h"
 
+#define OPCODE_HALT 0x76
+#define OPCODE_PREFIX 0xcb
+
+#define REG_AF cpu.state.registers.af
+#define REG_BC cpu.state.registers.bc
+#define REG_DE cpu.state.registers.de
+#define REG_PC cpu.state.registers.pc
+#define REG_SP cpu.state.registers.sp
+#define REG_HL cpu.state.registers.hl
+#define REG_A cpu.state.registers.a
+#define REG_F cpu.state.registers.f
+#define REG_B cpu.state.registers.b
+#define REG_C cpu.state.registers.c
+#define REG_D cpu.state.registers.d
+#define REG_E cpu.state.registers.e
+#define REG_H cpu.state.registers.h
+#define REG_L cpu.state.registers.l
+
+#define RD_WORD(addr) \
+	(monitor_rd_mem(addr) | monitor_rd_mem(addr+1)<<8)
+
+#define WR_WORD(addr, value) \
+	monitor_wr_mem(addr, value&0xff); \
+	monitor_wr_mem(addr+1, (value&0xff00)>>8);
+
 // for convenience, we want to access registers as either 8-bit values (eg, register B),
 // 16-bit pairs (eg, register B and C as BC).
 struct registers {
@@ -95,5 +120,10 @@ typedef struct {
 	uint8_t wram[0x2000]; // 0xc000-0xdfff
 	uint8_t hram[0x7f]; // 0xff80-0xfffe
 } cpu_t;
+
+void cpu_enable_intr();
+void cpu_disable_intr();
+void cpu_halt();
+int ops_table_dispatch(uint8_t opcode, bool prefix);
 
 #endif

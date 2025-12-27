@@ -16,11 +16,26 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include "cpu.h"
 #include "mbc.h"
 
 static mbc_iface_t *mbc_impl;
 
 static void exec_next() {
+	int cycles = cpu_exec_next();
+}
+
+uint8_t monitor_rd_mem(uint16_t addr) {
+	if (addr <= 0xbfff) {
+		return mbc_impl->rd_mem(addr);
+	}
+	return 0;
+}
+
+void monitor_wr_mem(uint16_t addr, uint8_t value) {
+	if (addr <= 0xbfff) {
+		mbc_impl->wr_mem(addr, value);
+	}
 }
 
 int monitor_run() {
