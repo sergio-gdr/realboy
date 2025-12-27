@@ -16,44 +16,24 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <getopt.h>
-#include <stdio.h>
+#include "wayland-client-core.h"
 
-#include "backend/evdev.h"
-#include "backend/wayland.h"
+typedef struct {
+	struct wl_display *display;
+} wayland_backend_t;
+wayland_backend_t wayland_backend;
 
-FILE *rom;
+void wayland_backend_fini() {
+	wl_display_disconnect(wayland_backend.display);
+}
 
-int main(int argc, char *argv[]) {
-	int ret = 0;
+int wayland_backend_init() {
+	wayland_backend_t *back = &wayland_backend;
 
-	if (argc == 1) {
-		return 0;
+	back->display = wl_display_connect(NULL);
+	if (!back->display) {
+		return -1;
 	}
 
-	if (optind < argc) {
-		if ((rom = fopen(argv[optind], "r")) == NULL) {
-			perror("fopen()");
-			ret = -1;
-			goto err1;
-		}
-	}
-
-	ret = evdev_backend_init();
-	if (ret == -1) {
-		goto err2;
-	}
-
-	if ( (ret = wayland_backend_init()) == -1) {
-		goto err3;
-	}
-
-err4:
-	wayland_backend_fini();
-err3:
-	evdev_backend_fini();
-err2:
-	fclose(rom);
-err1:
-	return ret;
+	return 0;
 }
