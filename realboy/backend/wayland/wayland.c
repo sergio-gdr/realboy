@@ -34,10 +34,12 @@ typedef struct {
 	struct wl_registry *registry;
 	struct wl_shm *shm;
 	struct wl_seat *seat;
+	struct wl_shm_pool *shm_pool;
 	struct wl_surface *surface;
 	struct xdg_surface *xdg_surface;
 	struct xdg_toplevel *toplevel;
 	struct xdg_wm_base *wm_base;
+	struct wl_callback *frame_callback;
 
 	bool window_configured;
 	bool is_surface_focused;
@@ -181,8 +183,35 @@ void wayland_backend_set_framebuffer(const struct framebuffer *fb) {
 	wayland_backend_t *back = &wayland_backend;
 
 	back->framebuffer = *fb;
+	back->shm_pool = wl_shm_create_pool(back->shm, back->framebuffer.fd, back->framebuffer.size);
 }
 
+static const struct wl_callback_listener frame_listener;
+void backend_wayland_update_frame() {
+	wayland_backend_t *back = &wayland_backend;
+	struct framebuffer *fb = &back->framebuffer;
+
+	struct wl_buffer *wl_buf = wl_shm_pool_create_buffer(back->shm_pool, 0, fb->width, fb->height, fb->stride, WL_SHM_FORMAT_XRGB8888);
+	wl_surface_attach(back->surface, wl_buf, 0, 0);
+	wl_surface_damage(back->surface, 0, 0, fb->width, fb->height);
+	if (back->frame_callback)
+		wl_callback_destroy(back->frame_callback);
+
+	back->frame_callback = wl_surface_frame(back->surface);
+	wl_callback_add_listener(back->frame_callback, &frame_listener, NULL);
+	wl_surface_commit(back->surface);
+	wl_display_flush(back->display);
+}
+
+static void done(void *data, struct wl_callback *wl_callback,
+	uint32_t callback_data) {
+
+	backend_wayland_update_frame();
+}
+
+static const struct wl_callback_listener frame_listener = {
+        .done = done
+};
 void wayland_backend_dispatch() {
 	wl_display_dispatch(wayland_backend.display);
 }
