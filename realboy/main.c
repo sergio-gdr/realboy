@@ -23,6 +23,7 @@
 
 #include "backend/evdev.h"
 #include "backend/wayland.h"
+#include "monitor.h"
 #include "render.h"
 
 FILE *rom;
@@ -118,6 +119,14 @@ int main(int argc, char *argv[]) {
 		goto err5;
 	}
 
+	ret = monitor_init();
+	if (ret == -1) {
+		goto err6;
+	}
+
+	monitor_fini();
+err6:
+	pthread_cancel(epoll_thread);
 err5:
 	render_fini();
 err4:
