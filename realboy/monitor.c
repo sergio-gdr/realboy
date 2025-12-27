@@ -104,7 +104,28 @@ uint8_t monitor_rd_mem(uint16_t addr) {
 		case 0xff50:
 			return cpu_rd(addr);
 		default:
-			return tmp_ioregs[addr];
+			if (addr == 0xff00) {
+				if ((tmp_ioregs[addr] & 0x30) == 0x30) {
+					return 0x3f;
+				}
+				else {
+					uint8_t ret;
+					pthread_mutex_lock(&mtx_buttons);
+					if (tmp_ioregs[addr] & 0x10) {
+						ret = tmp_ioregs[addr] |
+							(start_released<<3|select_released<<2|b_released<<1|a_released);
+					}
+					else {
+						ret = tmp_ioregs[addr] |
+							(down_released<<3|up_released<<2|left_released<<1|right_released);
+					}
+					pthread_mutex_unlock(&mtx_buttons);
+					return ret;
+				}
+			}
+			else {
+				return tmp_ioregs[addr];
+			}
 	}
 }
 
