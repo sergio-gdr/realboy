@@ -34,6 +34,36 @@ static int num_evdevs;
 
 static int evdev_poll_fd;
 
+void evdev_backend_dispatch() {
+	struct epoll_event event_list[10];
+	int num_fds;
+	num_fds = epoll_wait(evdev_poll_fd, event_list, 10, 0);
+	for (int i = 0; i < num_fds; i++) {
+		struct input_event ev;
+		int ret;
+		while ( (ret = libevdev_next_event(event_list[i].data.ptr, LIBEVDEV_READ_FLAG_NORMAL, &ev)) >= 0) {
+			if (ev.type == EV_KEY) {
+				switch (ev.code) {
+					case KEY_ENTER:
+					case KEY_SPACE:
+					case KEY_D:
+					case KEY_S:
+					case KEY_LEFT:
+					case KEY_RIGHT:
+					case KEY_UP:
+					case KEY_DOWN:
+					case KEY_H:
+					case KEY_J:
+					case KEY_K:
+					case KEY_L:
+						return;
+					default:
+				}
+			}
+		}
+	}
+}
+
 int evdev_backend_get_fd() {
 	return evdev_poll_fd;
 }

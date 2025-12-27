@@ -75,6 +75,11 @@ static void *io_poll(void *val) {
 			if ((num_events = epoll_wait(epoll_fd, event_list, 10, -1)) == -1) {
 				perror("epoll_wait()");
 			}
+			for (int i = 0; i < num_events; i++) {
+				if (event_list[i].data.fd == evdev_fd) {
+					evdev_backend_dispatch();
+				}
+			}
 		}
 	}
 	pthread_exit(NULL);
