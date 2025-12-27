@@ -17,14 +17,25 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "cpu.h"
 
 #include "monitor.h"
 
+#include "config.h"
+
+#ifdef HAVE_LIBEMU
+	#include <libemu.h>
+#endif
+
 // main cpu structure
 // holds registers and other state
 cpu_t cpu;
+
+// defined in cpu_ops.c
+extern const uint8_t op_len[256];
 
 enum tac_bitmask {
 	TAC_BITMASK_CLOCK_SELECT = 0x3,
@@ -125,6 +136,67 @@ uint8_t cpu_rd(uint16_t addr) {
 			return 0;
 	}
 }
+
+#ifdef HAVE_LIBEMU
+static uint16_t peek_get_cpu_reg(uintptr_t cpu_reg) {
+	enum cpu_reg reg = cpu_reg;
+	switch (reg) {
+		case CPU_REG_AF:
+			return REG_AF;
+		case CPU_REG_BC:
+			return REG_BC;
+		case CPU_REG_DE:
+			return REG_DE;
+		case CPU_REG_HL:
+			return REG_HL;
+		case CPU_REG_SP:
+			return REG_SP;
+		case CPU_REG_PC:
+			return REG_PC;
+		default:
+			fprintf(stderr, "error: peek_get_cpu_reg()");
+			return -1;
+	}
+}
+
+void cpu_peek(struct peek *peek, struct peek_reply *reply) {
+	switch (peek->subtype) {
+		case CPU_PEEK_REG:
+			reply->size = sizeof(uint32_t);
+			reply->payload = malloc(reply->size); // caller frees
+			uint32_t cpu_reg = peek_get_cpu_reg(peek->req);
+			memcpy(reply->payload, &cpu_reg, reply->size);
+			break;
+		case CPU_PEEK_ADDR:
+			reply->size = sizeof(uint32_t);
+			reply->payload = malloc(reply->size); // caller frees
+			uint32_t addr = monitor_rd_mem(peek->req);
+			memcpy(reply->payload, &addr, reply->size);
+			break;
+		case CPU_PEEK_INSTR_AT_ADDR:
+			{
+				uint32_t opcode = monitor_rd_mem(peek->req);
+				reply->size = opcode == OPCODE_PREFIX ? 2 : op_len[opcode];
+				reply->size *= sizeof(uint32_t);
+				reply->payload = malloc(reply->size); // caller frees
+				memcpy(reply->payload, &opcode, sizeof(uint32_t));
+				for (size_t i=1; i < (reply->size)/sizeof(uint32_t); i++) {
+					uint32_t req = monitor_rd_mem(peek->req+i);
+					memcpy((uint32_t*)reply->payload+i, &req, sizeof(uint32_t));
+				}
+			}
+			break;
+		case CPU_PEEK_OP_LEN:
+			reply->size = sizeof(uint32_t);
+			reply->payload = malloc(reply->size); // caller frees
+			uint32_t len = op_len[peek->req];
+			memcpy(reply->payload, &len, sizeof(uint32_t));
+			break;
+		default:
+			fprintf(stderr, "error: cpu_peek()");
+	}
+}
+#endif
 
 void cpu_wr(uint16_t addr, uint8_t value) {
 	struct cpu_state *state = &cpu.state;

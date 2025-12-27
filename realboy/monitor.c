@@ -17,17 +17,39 @@
  */
 
 #define _POSIX_C_SOURCE 200809L
+#include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <time.h>
 
 #include <linux/input.h>
+#include <poll.h>
 #include <pthread.h>
+
+#include "monitor.h"
 
 #include "cpu.h"
 #include "mbc.h"
 #include "backend/wayland.h"
 
 #include "ppu.h"
+
+#include "config.h"
+
+#ifdef HAVE_LIBEMU
+	#include <libemu.h>
+	#include "server.h"
+	list_t *breakpoint_list;
+	pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
+	bool server_got_request;
+	bool monitor_is_executing;
+	uint16_t until_addr;
+	bool control_flow_continue;
+	bool control_flow_until;
+	bool control_flow_next;
+#endif
 
 static mbc_iface_t *mbc_impl;
 
@@ -208,15 +230,262 @@ void monitor_set_key(struct input_event *ev) {
 				right_released = !ev->value;
 				break;
 			default:
+				fprintf(stderr, "monitor_set_key()");
 		}
 		pthread_mutex_unlock(&mtx_buttons);
 	}
 }
 
+#ifdef HAVE_LIBEMU
+void monitor_resume_execution() {
+	monitor_is_executing = true;
+}
+
+void monitor_stop_execution() {
+	monitor_is_executing = false;
+}
+
+static bool hit_breakpoint() {
+	bool ret = false;
+
+	struct peek peek = {};
+	struct peek_reply peek_reply = {};
+	peek.type = PEEK_CPU;
+	peek.subtype = CPU_PEEK_REG;
+	peek.req = CPU_REG_PC;
+	cpu_peek(&peek, &peek_reply);
+	uint32_t addr = *(uint32_t*)peek_reply.payload;
+	free(peek_reply.payload);
+
+	struct msg msg_reply;
+	msg_reply.hdr.type = TYPE_CONTROL_FLOW;
+	msg_reply.hdr.size = 4;
+	if (control_flow_continue || control_flow_until) {
+		uint32_t breakpoint;
+		list_for_each(breakpoint_list, breakpoint) {
+			if (breakpoint == addr) {
+				msg_reply.hdr.subtype.control_flow = CONTROL_FLOW_BREAK;
+				control_flow_continue = 0;
+				ret = true;
+				break;
+			}
+		}
+
+		if (control_flow_until) {
+			if (until_addr == addr) {
+				msg_reply.hdr.subtype.control_flow = CONTROL_FLOW_UNTIL;
+				control_flow_until = false;
+				control_flow_continue = false;
+				until_addr = 0;
+				ret = true;
+			}
+		}
+		if (ret) {
+			msg_reply.payload = malloc(sizeof(uint32_t));
+			memcpy(msg_reply.payload, &addr, sizeof(uint32_t));
+			emu_send_msg(&msg_reply);
+			free(msg_reply.payload);
+		}
+	}
+
+	if (control_flow_next) {
+		msg_reply.hdr.subtype.control_flow = CONTROL_FLOW_NEXT;
+		control_flow_next = false;
+		ret = true;
+	}
+
+	if (ret)
+		monitor_stop_execution();
+	return ret;
+}
+
+static void handle_control_flow_next() {
+	control_flow_next = true;
+	monitor_resume_execution();
+}
+
+static void handle_control_flow_until(uint32_t addr) {
+	control_flow_until = true;
+	until_addr = addr;
+	monitor_resume_execution();
+}
+
+static void handle_control_flow_break(uint32_t addr) {
+	list_add(breakpoint_list, (uintptr_t)addr);
+}
+
+static void handle_control_flow_delete(uint32_t addr) {
+	uint32_t breakpoint;
+	list_for_each(breakpoint_list, breakpoint) {
+		if (breakpoint == addr || addr == 0) {
+			list_remove(breakpoint_list, breakpoint);
+			break;
+		}
+	}
+}
+
+static void handle_control_flow_continue() {
+	control_flow_continue = true;
+	monitor_resume_execution();
+}
+
+void monitor_set_control_flow(enum msg_type_control_flow control_flow, uint32_t addr) {
+	switch (control_flow) {
+		case CONTROL_FLOW_UNTIL:
+			handle_control_flow_until(addr);
+			break;
+		case CONTROL_FLOW_BREAK:
+			handle_control_flow_break(addr);
+			break;
+		case CONTROL_FLOW_DELETE:
+			handle_control_flow_delete(addr);
+			break;
+		case CONTROL_FLOW_NEXT:
+			handle_control_flow_next();
+			break;
+		case CONTROL_FLOW_CONTINUE:
+			handle_control_flow_continue();
+			break;
+		default:
+			assert(false);
+	}
+}
+
+static void thread_cleanup(void *arg) {
+	if (pthread_rwlock_unlock(&rwlock) != 0)
+		perror("pthread_rwlock_wrunlock()");
+}
+
+static void *wait_for_server_request(void *val) {
+	int client_fd = emu_get_fd();
+	struct pollfd client_poll = { .fd = client_fd, .events = POLLIN };
+
+	server_got_request = false;
+
+	if (pthread_rwlock_wrlock(&rwlock) != 0) {
+		perror("pthread_rwlock_wrlock()");
+		goto err_wrlock;
+	}
+
+	pthread_cleanup_push(thread_cleanup, NULL);
+
+	int pipe_lock_acquired = *(int*)val;
+	int buf = 1;
+	if (write(pipe_lock_acquired, &buf, 1) == -1) {
+		perror("write()");
+		goto err_write;
+	}
+	close(pipe_lock_acquired);
+
+	while (1) {
+		if (poll(&client_poll, 1, -1) == -1) {
+			perror("poll()");
+		}
+		server_got_request = true;
+		break;
+	}
+
+	pthread_cleanup_pop(1);
+	return NULL;
+
+err_write:
+	pthread_rwlock_unlock(&rwlock);
+err_wrlock:
+	return NULL;
+}
+
+static bool got_server_request() {
+	if (!pthread_rwlock_tryrdlock(&rwlock)) {
+		if (server_got_request) {
+			pthread_rwlock_unlock(&rwlock);
+			return true;
+		}
+		pthread_rwlock_unlock(&rwlock);
+	}
+	return false;
+}
+
+static bool should_continue_execution() {
+	if (hit_breakpoint()) {
+		return false;
+	}
+
+	if (got_server_request()) {
+		return false;
+	}
+
+	return true;
+}
+
+static int create_wait_thread(pthread_t *wait_thread) {
+	int pipe_lock_acquired[2];
+	if (pipe(pipe_lock_acquired) == -1) {
+		perror("pipe()");
+		goto err_pipe;
+	}
+
+	if (pthread_create(wait_thread, NULL, wait_for_server_request, &pipe_lock_acquired[1])) {
+		perror("pthread_create()");
+		goto err_thread;
+	}
+
+	int _dummy;
+	if (read(pipe_lock_acquired[0], &_dummy, 1) == -1) {
+		perror("read()");
+		goto err_read;
+	}
+
+	close(pipe_lock_acquired[0]);
+
+	return 0;
+
+err_read:
+	pthread_cancel(*wait_thread);
+err_thread:
+	close(pipe_lock_acquired[0]);
+	close(pipe_lock_acquired[1]);
+err_pipe:
+	return -1;
+}
+
+inline static int cancel_wait_thread(const pthread_t *wait_thread) {
+	if (pthread_cancel(*wait_thread) != 0) {
+		perror("pthread_cancel");
+		return -1;
+	}
+	if (pthread_join(*wait_thread, NULL) != 0) {
+		perror("pthread_join");
+		return -1;
+	}
+	return 0;
+}
+#endif // HAVE_LIBEMU
+
 int monitor_run() {
 	while (1) {
-		exec_next();
+#ifdef HAVE_LIBEMU
+		if (server_is_client_connected()) {
+			if (monitor_is_executing) {
+				pthread_t wait_thread;
+				if (create_wait_thread(&wait_thread) == -1)
+					break;
+				do {
+					exec_next();
+				} while (should_continue_execution());
+				if (cancel_wait_thread(&wait_thread) == -1)
+					break;
+				monitor_stop_execution();
+			}
+			// we are not executing, so block until a new request from client.
+			else {
+				server_recv_request_and_dispatch(true);
+			}
+		}
+		else
+#endif
+			exec_next();
 	}
+	return -1;
 }
 
 void monitor_fini() {

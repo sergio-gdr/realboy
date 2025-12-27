@@ -19,12 +19,16 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "ppu.h"
 
 #include "cpu.h"
 #include "monitor.h"
 #include "render.h"
+
+#include "config.h"
 
 enum ppu_mode {
 	PPU_HBLANK=0,
@@ -526,3 +530,29 @@ void ppu_refresh(uint8_t ticks) {
 		}
 	}
 }
+
+#ifdef HAVE_LIBEMU
+static uint16_t peek_get_ppu_reg(uintptr_t ppu_reg) {
+	enum ppu_reg reg = ppu_reg;
+	switch (reg) {
+		case PPU_REG_LY:
+			return ppu_rd(0xff44);
+		default:
+			fprintf(stderr, "error: peek_get_ppu_reg()");
+			return -1;
+	}
+}
+
+void ppu_peek(struct peek *peek, struct peek_reply *reply) {
+	switch (peek->subtype) {
+		case PPU_PEEK_REG:
+			reply->size = sizeof(uint32_t);
+			reply->payload = malloc(reply->size); // caller frees
+			uint32_t ppu_reg = peek_get_ppu_reg(peek->req);
+			memcpy(reply->payload, &ppu_reg, sizeof(uint32_t));
+			break;
+		default:
+			fprintf(stderr, "error: ppu_peek()");
+	}
+}
+#endif

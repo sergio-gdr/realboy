@@ -21,6 +21,18 @@
 
 #include <stdint.h>
 
+#include "monitor.h"
+
+#include "config.h"
+
+// types of 'peek' provided by the cpu module.
+enum cpu_peek_type {
+	CPU_PEEK_REG,
+	CPU_PEEK_ADDR,
+	CPU_PEEK_INSTR_AT_ADDR,
+	CPU_PEEK_OP_LEN
+};
+
 // for requesting interrupts when calling cpu_request_intr().
 enum interrupt_mask {
 	REQUEST_INTR_VBLANK = 0x1,
@@ -29,11 +41,21 @@ enum interrupt_mask {
 	REQUEST_INTR_JOYPAD = 0x8
 };
 
-int cpu_exec_next();
-void cpu_request_intr(enum interrupt_mask im);
+// initialiaze the cpu module.
+void cpu_init();
 
 // access cpu's internal state.
 void cpu_wr(uint16_t addr, uint8_t value);
 uint8_t cpu_rd(uint16_t addr);
+
+#ifdef HAVE_LIBEMU
+void cpu_peek(struct peek *peek, struct peek_reply *reply);
+#endif
+
+// execute the next instruction.
+int cpu_exec_next();
+
+// request a cpu interrupt.
+void cpu_request_intr(enum interrupt_mask);
 
 #endif

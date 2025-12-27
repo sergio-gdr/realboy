@@ -19,6 +19,7 @@
 #ifndef RB_SERVER_H
 #define RB_SERVER_H
 
+int server_recv_request_and_dispatch(bool wait_for_request);
 int server_init(bool wait_for_client);
 bool server_is_client_connected();
 

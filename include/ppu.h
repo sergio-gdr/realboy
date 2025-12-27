@@ -21,6 +21,15 @@
 
 #include <stdint.h>
 
+#include "monitor.h"
+
+#include "config.h"
+
+// types of 'peek' provided by the ppu module.
+enum ppu_peek_type {
+	PPU_PEEK_REG
+};
+
 // get the total number of frames since the start
 // of the emulation.
 uint64_t ppu_get_frame_count();
@@ -30,5 +39,9 @@ void ppu_refresh(uint8_t ticks);
 // access ppu's internal state.
 uint8_t ppu_rd(uint16_t addr);
 void ppu_wr(uint16_t addr, uint8_t value);
+
+#ifdef HAVE_LIBEMU
+void ppu_peek(struct peek *peek, struct peek_reply *reply);
+#endif
 
 #endif
