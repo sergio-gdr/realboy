@@ -17,13 +17,20 @@
  */
 
 #include <getopt.h>
+#include <pthread.h>
 #include <stdio.h>
+#include <sys/epoll.h>
 
 #include "backend/evdev.h"
 #include "backend/wayland.h"
 #include "render.h"
 
 FILE *rom;
+
+static pthread_cond_t cond_init = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t mtx_init = PTHREAD_MUTEX_INITIALIZER;
+static bool init_success;
+static pthread_t epoll_thread;
 
 // populate at compile time.
 // the __attribute__(section) attribute tells the compiler to create a contiguous
@@ -33,6 +40,39 @@ FILE *rom;
 POLL_ADD_SOURCE(wayland)
 POLL_ADD_SOURCE(evdev)
 extern int __start_fds_to_poll, __stop_fds_to_poll;
+
+static void *io_poll(void *val) {
+	int epoll_fd = epoll_create1(0);
+	init_success = true;
+
+	for (int *fd_to_poll = &__start_fds_to_poll; fd_to_poll < &__stop_fds_to_poll; fd_to_poll++) {
+		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, *fd_to_poll,
+				&(struct epoll_event) {
+				.events = EPOLLIN,
+				.data.fd = *fd_to_poll
+				}) == -1) {
+			perror("epoll_ctl()");
+			init_success = false;
+			break;
+		}
+	}
+
+	// signal the main thread about init success or failure.
+	pthread_mutex_lock(&mtx_init);
+	pthread_cond_signal(&cond_init);
+	pthread_mutex_unlock(&mtx_init);
+
+	if (init_success) {
+		struct epoll_event event_list[10];
+		while (1) {
+			int num_events;
+			if ((num_events = epoll_wait(epoll_fd, event_list, 10, -1)) == -1) {
+				perror("epoll_wait()");
+			}
+		}
+	}
+	pthread_exit(NULL);
+}
 
 int main(int argc, char *argv[]) {
 	int ret = 0;
@@ -63,6 +103,19 @@ int main(int argc, char *argv[]) {
 	ret = render_init();
 	if (ret == -1) {
 		goto err4;
+	}
+
+	// wait for the poll thread to initialize.
+	pthread_mutex_lock(&mtx_init);
+	ret = pthread_create(&epoll_thread, NULL, io_poll, NULL);
+	if (ret) {
+		pthread_mutex_unlock(&mtx_init);
+		goto err5;
+	}
+	pthread_cond_wait(&cond_init, &mtx_init);
+	pthread_mutex_unlock(&mtx_init);
+	if (!init_success) {
+		goto err5;
 	}
 
 err5:
