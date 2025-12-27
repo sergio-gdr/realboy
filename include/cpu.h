@@ -19,5 +19,13 @@
 #ifndef RB_CPU_H
 #define RB_CPU_H
 
+// for requesting interrupts when calling cpu_request_intr().
+enum interrupt_mask {
+	REQUEST_INTR_VBLANK = 0x1,
+	REQUEST_INTR_LCD = 0x2,
+	REQUEST_INTR_TIMER = 0x4,
+	REQUEST_INTR_JOYPAD = 0x8
+};
+
 int cpu_exec_next();
 #endif
