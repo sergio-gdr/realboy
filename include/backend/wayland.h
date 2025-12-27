@@ -21,4 +21,5 @@
 
 int wayland_backend_init();
 void wayland_backend_fini();
+int wayland_backend_get_fd();
 #endif

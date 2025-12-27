@@ -23,6 +23,10 @@ typedef struct {
 } wayland_backend_t;
 wayland_backend_t wayland_backend;
 
+int wayland_backend_get_fd() {
+	return wl_display_get_fd(wayland_backend.display);
+}
+
 void wayland_backend_fini() {
 	wl_display_disconnect(wayland_backend.display);
 }

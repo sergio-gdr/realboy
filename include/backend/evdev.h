@@ -23,4 +23,5 @@
 
 int evdev_backend_init();
 void evdev_backend_fini();
+int evdev_backend_get_fd();
 #endif

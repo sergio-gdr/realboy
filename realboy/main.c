@@ -25,6 +25,15 @@
 
 FILE *rom;
 
+// populate at compile time.
+// the __attribute__(section) attribute tells the compiler to create a contiguous
+// area in the section "fds_to_poll" (file descriptors to poll), and a pair of symbols
+// (__start* and __stop*) so we can traverse the fds.
+#define POLL_ADD_SOURCE(name) int __attribute__((section("fds_to_poll"))) name##_fd;
+POLL_ADD_SOURCE(wayland)
+POLL_ADD_SOURCE(evdev)
+extern int __start_fds_to_poll, __stop_fds_to_poll;
+
 int main(int argc, char *argv[]) {
 	int ret = 0;
 
@@ -44,10 +53,12 @@ int main(int argc, char *argv[]) {
 	if (ret == -1) {
 		goto err2;
 	}
+	evdev_fd = evdev_backend_get_fd();
 
 	if ( (ret = wayland_backend_init()) == -1) {
 		goto err3;
 	}
+	wayland_fd = wayland_backend_get_fd();
 
 	ret = render_init();
 	if (ret == -1) {

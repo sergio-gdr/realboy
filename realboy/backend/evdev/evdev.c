@@ -34,6 +34,10 @@ static int num_evdevs;
 
 static int evdev_poll_fd;
 
+int evdev_backend_get_fd() {
+	return evdev_poll_fd;
+}
+
 void evdev_backend_fini() {
 	for (int i = 0; i < num_evdevs; i++) {
 		libevdev_free(evdevs[i]);
