@@ -15,15 +15,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+#ifndef MBC1_H
+#define MBC1_H
 
-#include "mbc.h"
+#include "../include/mbc.h"
 
-static mbc_iface_t *mbc_impl;
+mbc_iface_t *mbc1_init();
 
-void monitor_fini() {
-}
-
-int monitor_init() {
-	mbc_impl = mbc_init();
-	return 0;
-}
+#endif

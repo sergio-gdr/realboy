@@ -16,14 +16,18 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include "mbc.h"
+#ifndef RB_MBC_H
+#define RB_MBC_H
 
-static mbc_iface_t *mbc_impl;
+#include <stdint.h>
 
-void monitor_fini() {
-}
+// since each mbc variant implements different mechanisms for memory access (eg,
+// memory banking), let each implement this interface.
+typedef struct {
+	uint8_t (*rd_mem)(uint16_t addr);
+	void (*wr_mem)(uint16_t addr, uint8_t value);
+} mbc_iface_t;
 
-int monitor_init() {
-	mbc_impl = mbc_init();
-	return 0;
-}
+mbc_iface_t *mbc_init();
+
+#endif
