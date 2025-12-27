@@ -169,6 +169,10 @@ int wayland_backend_get_fd() {
 	return wl_display_get_fd(wayland_backend.display);
 }
 
+bool wayland_backend_is_focus() {
+	return wayland_backend.is_surface_focused;
+}
+
 void wayland_backend_fini() {
 	wl_display_disconnect(wayland_backend.display);
 }

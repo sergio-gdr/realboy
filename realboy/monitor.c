@@ -20,12 +20,28 @@
 #include <stdio.h>
 #include <time.h>
 
+#include <linux/input.h>
+#include <pthread.h>
+
 #include "cpu.h"
 #include "mbc.h"
+#include "backend/wayland.h"
 
 #include "ppu.h"
 
 static mbc_iface_t *mbc_impl;
+
+// these are accessed by the evdev thread and the main thread.
+// protect with a mutex.
+static pthread_mutex_t mtx_buttons = PTHREAD_MUTEX_INITIALIZER;
+static bool start_released=true;
+static bool select_released=true;
+static bool a_released=true;
+static bool b_released=true;
+static bool up_released=true;
+static bool down_released=true;
+static bool left_released=true;
+static bool right_released=true;
 
 static void exec_next() {
 	int cycles = cpu_exec_next();
@@ -135,6 +151,44 @@ void monitor_wr_mem(uint16_t addr, uint8_t value) {
 		}
 		else
 			tmp_ioregs[addr] = value;
+	}
+}
+
+void monitor_set_key(struct input_event *ev) {
+	if (wayland_backend_is_focus()) {
+		pthread_mutex_lock(&mtx_buttons);
+		switch (ev->code) {
+			case KEY_ENTER:
+				start_released = !ev->value;
+				break;
+			case KEY_DOWN:
+			case KEY_J:
+				down_released = !ev->value;
+				break;
+			case KEY_SPACE:
+				select_released = !ev->value;
+				break;
+			case KEY_UP:
+			case KEY_K:
+				up_released = !ev->value;
+				break;
+			case KEY_S:
+				b_released = !ev->value;
+				break;
+			case KEY_LEFT:
+			case KEY_H:
+				left_released = !ev->value;
+				break;
+			case KEY_D:
+				a_released = !ev->value;
+				break;
+			case KEY_RIGHT:
+			case KEY_L:
+				right_released = !ev->value;
+				break;
+			default:
+		}
+		pthread_mutex_unlock(&mtx_buttons);
 	}
 }
 

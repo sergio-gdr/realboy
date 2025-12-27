@@ -24,6 +24,7 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
+#include "monitor.h"
 #include "backend/evdev.h"
 
 static const char *dev_input_path = "/dev/input/";
@@ -56,6 +57,7 @@ void evdev_backend_dispatch() {
 					case KEY_J:
 					case KEY_K:
 					case KEY_L:
+						monitor_set_key(&ev);
 						return;
 					default:
 				}
