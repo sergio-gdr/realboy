@@ -173,6 +173,10 @@ bool wayland_backend_is_focus() {
 	return wayland_backend.is_surface_focused;
 }
 
+void wayland_backend_dispatch() {
+	wl_display_dispatch(wayland_backend.display);
+}
+
 void wayland_backend_fini() {
 	wl_display_disconnect(wayland_backend.display);
 }

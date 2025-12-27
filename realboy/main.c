@@ -76,7 +76,10 @@ static void *io_poll(void *val) {
 				perror("epoll_wait()");
 			}
 			for (int i = 0; i < num_events; i++) {
-				if (event_list[i].data.fd == evdev_fd) {
+				if (event_list[i].data.fd == wayland_fd) {
+					wayland_backend_dispatch();
+				}
+				else if (event_list[i].data.fd == evdev_fd) {
 					evdev_backend_dispatch();
 				}
 			}
