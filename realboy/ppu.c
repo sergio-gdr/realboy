@@ -16,6 +16,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -144,6 +145,173 @@ static void vblank_end_cycle() {
 	monitor_throttle_fps();
 }
 
+uint8_t *oam_hash[17][40] = {};
+#define OBJ_ATTR_FLIP_Y 0x40
+#define OBJ_ATTR_FLIP_X 0x20
+
+#define SCANLINE 160
+uint32_t color_pal[] = { 0xe8fccc, 0xacd490, 0x548c70, 0x142c38 };
+
+static uint16_t *get_tile_line(const uint8_t tile_indx, uint8_t line) {
+	struct ppu_regs *regs = &ppu.regs;
+
+	bool is_mode_8k = regs->lcdc & LCDC_BITMASK_BGWIN_TILE_DATA;
+	uint8_t *tiledata =  is_mode_8k ? ppu.tile_data : &ppu.tile_data[0x1000];
+	if (is_mode_8k)
+		tiledata += 16 * tile_indx;
+	else
+		tiledata = (uint8_t *)((int8_t *)tiledata + ((int8_t)tile_indx * 16));
+
+	tiledata += line * 2;
+	return (uint16_t*)tiledata;
+}
+
+static uint16_t get_tile_line_from_object(uint8_t *obj, uint8_t line) {
+	uint8_t *tiledata =  ppu.tile_data;
+	tiledata += obj[2] * 16;
+
+	uint8_t size_obj = (ppu.regs.lcdc & LCDC_BITMASK_OBJ_SIZE ? 16 : 8);
+	tiledata += obj[3] & OBJ_ATTR_FLIP_Y ? ((size_obj-1) - line) * 2 : line * 2;
+
+	uint16_t tileline = *(uint16_t *)tiledata;
+	return tileline;
+}
+
+static int get_objs_at_xy(uint32_t x, uint32_t y, uint8_t **objs) {
+	int num_objs = 0;
+	for (int i = 0; i < 2; i++) {
+		uint8_t **obj = oam_hash[(y+((i)*16))>>4];
+		while (*obj && num_objs < 10) {
+			uint8_t size = ppu.regs.lcdc & LCDC_BITMASK_OBJ_SIZE ? 16 : 8;
+			//printf("inspecting obj %d x %d y %d oam[0] %d oam[1] %d\n", (*obj)[2], x, y , (*obj)[1], (*obj)[0]);
+			if (((y+16) - (*obj)[0]) < size &&
+					((x+8) - (*obj)[1]) < 8) {
+				objs[num_objs] = (void *)*obj;
+				num_objs++;
+			}
+			obj++;
+		}
+	}
+	return num_objs;
+}
+
+static uint32_t get_pixel_priority_from_objs(uint8_t **objs, int num_objs, int x, uint8_t **out_obj) {
+	uint8_t pixel;
+	uint8_t *curr_priority = objs[0];
+	*out_obj = objs[0];
+	for (int i = 0; i < num_objs; i++) {
+		uint16_t tileline = get_tile_line_from_object(objs[i], (ppu.regs.ly+16)-(objs)[i][0]);
+		bool flip_x = objs[i][3] & OBJ_ATTR_FLIP_X;
+		uint8_t beg_pixel_in_tile = flip_x ? 7 - ((x)-(objs[i][1])) : (x)-(objs[i][1]);
+		uint8_t indx = (bool)(tileline & (0x8000 >> ((beg_pixel_in_tile)&7)))<<1;
+		indx |= (((bool)(tileline & (0x80 >> ((beg_pixel_in_tile)&7)))));
+		assert(indx <= 3);
+		if (i == 0) {
+			pixel = indx;
+		}
+		else {
+			if (pixel == 0 || (objs[i][1] <= curr_priority[1])) {
+				if (pixel && (objs[i][1] == curr_priority[1])) {
+					uint8_t *oam = ppu.oam;
+					for (int j = 0; j < 40; j++) {
+						if (oam == objs[i] || oam == curr_priority) {
+							break;
+						}
+						oam += 4;
+					}
+					if (oam == objs[i]) {
+						pixel = indx;
+						curr_priority = objs[i];
+						*out_obj = objs[i];
+					}
+				}
+				else if (indx) {
+					pixel = indx;
+					curr_priority = objs[i];
+					*out_obj = objs[i];
+				}
+			}
+		}
+	}
+	return pixel;
+}
+
+static void ppu_render_line() {
+	struct ppu_regs *regs = &ppu.regs;
+
+	uint8_t *bg_tilemap = regs->lcdc & LCDC_BITMASK_BG_TILE_MAP ? ppu.tile_map2 : ppu.tile_map1;
+	// tilemaps are 32x32 1-byte entries that represent the index into the tile data
+	// area.
+	// here we point to the correct row of the 32x32 entries.
+	uint8_t *bg_tilemap_row_beg = bg_tilemap + ((((regs->ly+regs->scy)>>3)<<5) & 0x3ff);
+	uint8_t bg_beg_pixel_in_tile = regs->scx&7;
+
+	for (int i=0; i < SCANLINE; i+=8) {
+		for (int j = 0; j < 8; j++) {
+			uint32_t final_pixel;
+
+			uint32_t obj_pixel = 0;
+			uint8_t *obj_prio = nullptr;
+			if (regs->lcdc & LCDC_BITMASK_OBJ_ENABLE) {
+				uint8_t *objs[10];
+				int num_objs = get_objs_at_xy(i+j, ppu.regs.ly, objs);
+				if (num_objs) {
+					uint32_t obj_indx = get_pixel_priority_from_objs(objs, num_objs, i+j, &obj_prio);
+					if (obj_indx) {
+						uint8_t obj_palette = obj_prio[3] & 0x10 ? regs->obp1 : regs->obp0;
+						obj_pixel = color_pal[(obj_palette & (3<<(obj_indx<<1)))>> (obj_indx<<1)];
+						final_pixel = obj_pixel;
+					}
+					//printf("drawing obj %d, obj_x %d obj_y %d at x %d y %d pixel %d\n", (*obj)[2], (*obj)[1], (*obj)[0], i+j, ppu.regs.ly, pixel);
+				}
+			}
+
+			if (regs->lcdc & LCDC_BITMASK_BG_ENABLE &&
+					(!obj_pixel || obj_prio[3] & 0x80)) {
+				// adjust the column position in each iteration, since it may wrap at any time
+				// in the line rendering.
+				bg_tilemap = bg_tilemap_row_beg + (((i + j + regs->scx) &0xff)>>3);
+
+				// get bg tileline
+				uint16_t *bg_tileline;
+				bg_tileline = get_tile_line(*bg_tilemap, (regs->ly+regs->scy)&7);
+				uint8_t bg_indx = ((bool)(*bg_tileline & (0x8000 >> ((j+bg_beg_pixel_in_tile)&7))))<<1;
+				bg_indx |= (((bool)(*bg_tileline & (0x80 >> ((j+bg_beg_pixel_in_tile)&7)))));
+				assert(bg_indx <= 3);
+				uint32_t bg_pixel = color_pal[(regs->bgp & (3<<(bg_indx<<1))) >> (bg_indx<<1)];
+				if (!obj_pixel || (bg_indx != 0))
+					final_pixel = bg_pixel;
+			}
+
+			if (regs->lcdc & LCDC_BITMASK_WIN_ENABLE &&
+					(!obj_pixel || obj_prio[3] & 0x80) &&
+					(regs->wy <= regs->ly && (i+j+7 >= (regs->wx)) &&
+					 regs->wx < 166 && regs->wy < 143)) {
+				uint8_t *win_tilemap = regs->lcdc & LCDC_BITMASK_WIN_TILE_MAP ? ppu.tile_map2 : ppu.tile_map1;
+				// tilemaps are 32x32 1-byte entries that represent the index into the tile data
+				// area.
+				// here we point to the correct row of the 32x32 entries.
+				uint8_t *win_tilemap_row_beg = win_tilemap + ((((regs->ly-regs->wy)>>3)<<5)&0x3ff);
+
+				// adjust the column position each iteration, since it may wrap at any time
+				// in the line rendering.
+				win_tilemap = win_tilemap_row_beg + ((((i+j+7-regs->wx))>>3));
+
+				uint16_t *win_tileline;
+				win_tileline = get_tile_line(*win_tilemap, (regs->ly-regs->wy)&7);
+
+				uint8_t win_indx = (bool)(win_tileline[0] & (0x8000 >> ((i+j+7-regs->wx)&7)))<<1;
+				win_indx |= (((bool)(win_tileline[0] & (0x80 >> ((i+j+7-regs->wx)&7)))));
+				assert(win_indx <= 3);
+
+				uint32_t win_pixel = color_pal[(regs->bgp & (3<<(win_indx<<1)))>> (win_indx<<1)];
+				if (!obj_pixel || (win_indx != 0))
+					final_pixel = win_pixel;
+			}
+		}
+	}
+}
+
 static void change_phase() {
 	switch (ppu.mode) {
 		// hblank cycle
@@ -162,6 +330,7 @@ static void change_phase() {
 			ppu.dots_remaining += DOTS_HBLANK;
 			ppu.regs.stat &= ~3;
 			ppu.mode = PPU_HBLANK;
+			ppu_render_line();
 			break;
 		default:
 	}
