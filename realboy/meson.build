@@ -2,12 +2,12 @@ sources = files(
 	'backend/wayland/wayland.c',
 	'backend/evdev/evdev.c',
 	'render.c',
-	'cpu/cpu.c',
-	'cpu/cpu_ops.c',
+	'emu/cpu/cpu.c',
+	'emu/cpu/cpu_ops.c',
+	'emu/mem/mbc.c',
+	'emu/mem/mbc1.c',
+	'emu/ppu.c',
 	'main.c',
-	'mem/mbc.c',
-	'mem/mbc1.c',
-	'ppu.c',
 	'monitor.c',
 )
 
