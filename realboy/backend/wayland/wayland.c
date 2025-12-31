@@ -72,6 +72,8 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 	.configure_bounds = handle_xdg_configure_bounds,
 	.wm_capabilities = handle_xdg_wm_capabilities
 };
+
+void backend_wayland_update_frame();
 static void
 handle_xdg_surface_configure(void *data, struct xdg_surface *surface, uint32_t serial)
 {
@@ -79,6 +81,7 @@ handle_xdg_surface_configure(void *data, struct xdg_surface *surface, uint32_t s
 	xdg_surface_ack_configure(surface, serial);
 	if (!configured) {
 		configured = true;
+		backend_wayland_update_frame();
 	}
 }
 
