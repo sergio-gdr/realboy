@@ -401,6 +401,24 @@ static void wr_reg(uint16_t addr, uint8_t value) {
 	}
 }
 
+static void oam_rehash(uint16_t addr, uint8_t new_y) {
+	uint8_t **obj = oam_hash[(ppu.oam[addr])>>4];
+
+	bool found = false;
+	while (*obj) {
+		if (*obj == &ppu.oam[addr] || found) {
+			found = true;
+			*obj = *(obj+1);
+		}
+		obj++;
+	}
+
+	obj = oam_hash[new_y>>4];
+	while (*obj)
+		obj++;
+	*obj = &ppu.oam[addr];
+}
+
 void ppu_wr(uint16_t addr, uint8_t value) {
 	if (addr >= 0xff40) {
 		wr_reg(addr, value);
@@ -415,6 +433,8 @@ void ppu_wr(uint16_t addr, uint8_t value) {
 		ppu.tile_map2[addr-0x9c00] = value;
 	}
 	else if (addr >= 0xfe00 && addr <= 0xfe9f) {
+		if (!(addr & 0x3) && (ppu.oam[addr-0xfe00]>>4) != (value>>4))
+			oam_rehash(addr-0xfe00, value);
 		ppu.oam[addr-0xfe00] = value;
 	}
 	else {
