@@ -69,6 +69,7 @@ static void *io_poll(void *val) {
 			int num_events;
 			if ((num_events = epoll_wait(epoll_fd, event_list, 10, -1)) == -1) {
 				perror("epoll_wait()");
+				continue;
 			}
 			for (int i = 0; i < num_events; i++) {
 				backends_dispatch(event_list[i].data.fd);
