@@ -28,7 +28,7 @@ realboy_dependencies = [
 libemu = dependency(
     'libemu',
     fallback: 'libemu',
-    required: get_option('libemu'),
+    required: false,
 )
 
 internal_config = configuration_data()
