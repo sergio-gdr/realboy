@@ -23,7 +23,18 @@
 #include "wayland-client.h"
 #include "xdg-shell-client-protocol.h"
 
+#include "backend/wayland.h"
+
 #include "render.h"
+
+struct backend wayland_backend_iface =
+{
+	.init = wayland_backend_init,
+	.fini = wayland_backend_fini,
+	.get_fd = wayland_backend_get_fd,
+	.dispatch = wayland_backend_dispatch
+};
+int wayland_fd;
 
 typedef struct {
 	struct framebuffer framebuffer;
@@ -182,7 +193,7 @@ bool wayland_backend_is_focus() {
 	return wayland_backend.is_surface_focused;
 }
 
-void wayland_backend_set_framebuffer(const struct framebuffer *fb) {
+void set_framebuffer(const struct framebuffer *fb) {
 	wayland_backend_t *back = &wayland_backend;
 
 	back->framebuffer = *fb;
@@ -215,8 +226,10 @@ static void done(void *data, struct wl_callback *wl_callback,
 static const struct wl_callback_listener frame_listener = {
         .done = done
 };
-void wayland_backend_dispatch() {
-	wl_display_dispatch(wayland_backend.display);
+void wayland_backend_dispatch(int fd) {
+	if (fd == wl_display_get_fd(wayland_backend.display)) {
+		wl_display_dispatch(wayland_backend.display);
+	}
 }
 
 void wayland_backend_fini() {
@@ -250,6 +263,10 @@ int wayland_backend_init() {
 
 	wl_surface_commit(back->surface);
 	wl_display_flush(back->display);
+
+	struct framebuffer fb = render_get_framebuffer_dimensions();
+	fb.fd = render_get_framebuffer_fd();
+	set_framebuffer(&fb);
 
 	return 0;
 }

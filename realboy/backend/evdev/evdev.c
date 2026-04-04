@@ -27,6 +27,14 @@
 #include "monitor.h"
 #include "backend/evdev.h"
 
+struct backend evdev_backend_iface =
+{
+	.init = evdev_backend_init,
+	.fini = evdev_backend_fini,
+	.get_fd = evdev_backend_get_fd,
+	.dispatch = evdev_backend_dispatch
+};
+
 static const char *dev_input_path = "/dev/input/";
 
 #define MAX_EVDEVS 10
@@ -35,7 +43,11 @@ static int num_evdevs;
 
 static int evdev_poll_fd;
 
-void evdev_backend_dispatch() {
+void evdev_backend_dispatch(int fd) {
+	if (fd != evdev_poll_fd) {
+		return;
+	}
+
 	struct epoll_event event_list[10];
 	int num_fds;
 	num_fds = epoll_wait(evdev_poll_fd, event_list, 10, 0);

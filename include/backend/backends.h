@@ -16,18 +16,19 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef RB_EVDEV_H
-#define RB_EVDEV_H
+#ifndef RB_BACKENDS_H
+#define RB_BACKENDS_H
 
-#include <libevdev/libevdev.h>
+struct backend {
+	int (*init)();
+	void (*fini)();
+	void (*dispatch)(int fd);
+	int (*get_fd)();
+};
 
-#include "backends.h"
-
-int evdev_backend_init();
-void evdev_backend_fini();
-int evdev_backend_get_fd();
-void evdev_backend_dispatch(int fd);
-
-extern struct backend evdev_backend_iface;
+int backends_init();
+void backends_fini();
+int *backends_get_fds();
+void backends_dispatch(int fd);
 
 #endif

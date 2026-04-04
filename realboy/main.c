@@ -24,8 +24,7 @@
 #include <stdio.h>
 #include <sys/epoll.h>
 
-#include "backend/evdev.h"
-#include "backend/wayland.h"
+#include "backend/backends.h"
 #include "monitor.h"
 #include "render.h"
 
@@ -40,24 +39,18 @@ static pthread_t epoll_thread;
 
 static bool is_server_mode;
 
-// populate at compile time.
-// the __attribute__(section) attribute tells the compiler to create a contiguous
-// area in the section "fds_to_poll" (file descriptors to poll), and a pair of symbols
-// (__start* and __stop*) so we can traverse the fds.
-#define POLL_ADD_SOURCE(name) int __attribute__((section("fds_to_poll"))) name##_fd;
-POLL_ADD_SOURCE(wayland)
-POLL_ADD_SOURCE(evdev)
-extern int __start_fds_to_poll, __stop_fds_to_poll;
+static int num_fds;
 
 static void *io_poll(void *val) {
 	int epoll_fd = epoll_create1(0);
 	init_success = true;
 
-	for (int *fd_to_poll = &__start_fds_to_poll; fd_to_poll < &__stop_fds_to_poll; fd_to_poll++) {
-		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, *fd_to_poll,
+	int *fds = backends_get_fds();
+	for (int i = 0; i < num_fds; i++) {
+		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fds[i],
 				&(struct epoll_event) {
 				.events = EPOLLIN,
-				.data.fd = *fd_to_poll
+				.data.fd = fds[i]
 				}) == -1) {
 			perror("epoll_ctl()");
 			init_success = false;
@@ -78,12 +71,7 @@ static void *io_poll(void *val) {
 				perror("epoll_wait()");
 			}
 			for (int i = 0; i < num_events; i++) {
-				if (event_list[i].data.fd == wayland_fd) {
-					wayland_backend_dispatch();
-				}
-				else if (event_list[i].data.fd == evdev_fd) {
-					evdev_backend_dispatch();
-				}
+				backends_dispatch(event_list[i].data.fd);
 			}
 		}
 	}
@@ -121,24 +109,16 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	ret = evdev_backend_init();
-	if (ret == -1) {
-		goto err_evdev;
-	}
-	evdev_fd = evdev_backend_get_fd();
-
-	if ( (ret = wayland_backend_init()) == -1) {
-		goto err_wayland;
-	}
-	wayland_fd = wayland_backend_get_fd();
-
 	ret = render_init();
 	if (ret == -1) {
 		goto err_render;
 	}
-	struct framebuffer fb = render_get_framebuffer_dimensions();
-	fb.fd = render_get_framebuffer_fd();
-	wayland_backend_set_framebuffer(&fb);
+
+	ret = backends_init();
+	if (ret == -1) {
+		goto err_backends;
+	}
+	num_fds = ret;
 
 	// wait for the poll thread to initialize.
 	pthread_mutex_lock(&mtx_init);
@@ -175,12 +155,10 @@ int main(int argc, char *argv[]) {
 err_monitor:
 	pthread_cancel(epoll_thread);
 err_pthread:
+	backends_fini();
+err_backends:
 	render_fini();
 err_render:
-	wayland_backend_fini();
-err_wayland:
-	evdev_backend_fini();
-err_evdev:
 	fclose(rom);
 err_open:
 	return ret;
