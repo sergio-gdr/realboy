@@ -23,7 +23,18 @@
 #include "wayland-client.h"
 #include "xdg-shell-client-protocol.h"
 
+#include "backend/wayland.h"
+
 #include "render.h"
+
+struct backend wayland_backend_iface =
+{
+	.init = wayland_backend_init,
+	.fini = wayland_backend_fini,
+	.get_fd = wayland_backend_get_fd,
+	.dispatch = wayland_backend_dispatch
+};
+int wayland_fd;
 
 typedef struct {
 	struct framebuffer framebuffer;
@@ -215,8 +226,10 @@ static void done(void *data, struct wl_callback *wl_callback,
 static const struct wl_callback_listener frame_listener = {
         .done = done
 };
-void wayland_backend_dispatch() {
-	wl_display_dispatch(wayland_backend.display);
+void wayland_backend_dispatch(int fd) {
+	if (fd == wl_display_get_fd(wayland_backend.display)) {
+		wl_display_dispatch(wayland_backend.display);
+	}
 }
 
 void wayland_backend_fini() {

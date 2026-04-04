@@ -21,8 +21,13 @@
 
 #include <libevdev/libevdev.h>
 
+#include "backends.h"
+
 int evdev_backend_init();
 void evdev_backend_fini();
 int evdev_backend_get_fd();
-void evdev_backend_dispatch();
+void evdev_backend_dispatch(int fd);
+
+extern struct backend evdev_backend_iface;
+
 #endif
