@@ -118,24 +118,24 @@ int main(int argc, char *argv[]) {
 		if ((rom = fopen(argv[optind], "r")) == NULL) {
 			perror("fopen()");
 			ret = -1;
-			goto err1;
+			goto err_open;
 		}
 	}
 
 	ret = evdev_backend_init();
 	if (ret == -1) {
-		goto err2;
+		goto err_evdev;
 	}
 	evdev_fd = evdev_backend_get_fd();
 
 	if ( (ret = wayland_backend_init()) == -1) {
-		goto err3;
+		goto err_wayland;
 	}
 	wayland_fd = wayland_backend_get_fd();
 
 	ret = render_init();
 	if (ret == -1) {
-		goto err4;
+		goto err_render;
 	}
 	struct framebuffer fb = render_get_framebuffer_dimensions();
 	fb.fd = render_get_framebuffer_fd();
@@ -146,17 +146,17 @@ int main(int argc, char *argv[]) {
 	ret = pthread_create(&epoll_thread, NULL, io_poll, NULL);
 	if (ret) {
 		pthread_mutex_unlock(&mtx_init);
-		goto err5;
+		goto err_pthread;
 	}
 	pthread_cond_wait(&cond_init, &mtx_init);
 	pthread_mutex_unlock(&mtx_init);
 	if (!init_success) {
-		goto err5;
+		goto err_pthread;
 	}
 
 	ret = monitor_init(is_server_mode);
 	if (ret == -1) {
-		goto err6;
+		goto err_monitor;
 	}
 
 	// we handle SIGINT so that the user can ctrl+c to quit.
@@ -173,16 +173,16 @@ int main(int argc, char *argv[]) {
 	}
 
 	monitor_fini();
-err6:
+err_monitor:
 	pthread_cancel(epoll_thread);
-err5:
+err_pthread:
 	render_fini();
-err4:
+err_render:
 	wayland_backend_fini();
-err3:
+err_wayland:
 	evdev_backend_fini();
-err2:
+err_evdev:
 	fclose(rom);
-err1:
+err_open:
 	return ret;
 }
