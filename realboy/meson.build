@@ -1,6 +1,7 @@
 sources = files(
 	'backend/wayland/wayland.c',
 	'backend/evdev/evdev.c',
+	'backend/backends.c',
 	'render.c',
 	'emu/cpu/cpu.c',
 	'emu/cpu/cpu_ops.c',
