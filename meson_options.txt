@@ -13,6 +13,13 @@ option(
 )
 
 option(
+	'pipewire-backend',
+	type: 'boolean',
+	value: true,
+	description: 'Enable support for pipewire backend'
+)
+
+option(
 	'evdev-backend',
 	type: 'boolean',
 	value: true,

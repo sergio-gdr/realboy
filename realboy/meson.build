@@ -1,6 +1,8 @@
 sources = files(
 	'wayland/wayland.c',
 	'wayland/backend.c',
+	'pipewire/pipewire.c',
+	'pipewire/backend.c',
 	'evdev/evdev.c',
 	'evdev/backend.c',
 	'backends.c',
@@ -43,6 +45,10 @@ endif
 num_backends = 0
 if get_option('wayland-backend') == true
     internal_config.set('HAVE_WAYLAND_BACKEND', '1')
+	num_backends += 1
+endif
+if get_option('pipewire-backend') == true
+    internal_config.set('HAVE_PIPEWIRE_BACKEND', '1')
 	num_backends += 1
 endif
 if get_option('evdev-backend') == true
