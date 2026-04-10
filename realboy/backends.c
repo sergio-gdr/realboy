@@ -21,23 +21,13 @@
 
 #include "config.h"
 
-#ifdef HAVE_WAYLAND_BACKEND
-#include "../include/backend/wayland.h"
-#endif
-#ifdef HAVE_PIPEWIRE_BACKEND
-#include "../include/backend/pipewire.h"
-#endif
-#ifdef HAVE_EVDEV_BACKEND
-#include "../include/backend/evdev.h"
-#endif
-
 struct backend *backends[NUM_BACKENDS] =
 {
 #ifdef HAVE_WAYLAND_BACKEND
-	&wayland_backend_iface,
+	&wayland_backend_iface.backend,
 #endif
 #ifdef HAVE_PIPEWIRE_BACKEND
-	&pipewire_backend_iface,
+	&pipewire_backend_iface.backend,
 #endif
 #ifdef HAVE_EVDEV_BACKEND
 	&evdev_backend_iface,

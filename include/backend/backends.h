@@ -19,6 +19,18 @@
 #ifndef RB_BACKENDS_H
 #define RB_BACKENDS_H
 
+#include "config.h"
+
+#ifdef HAVE_WAYLAND_BACKEND
+#include "../include/backend/wayland.h"
+#endif
+#ifdef HAVE_PIPEWIRE_BACKEND
+#include "../include/backend/pipewire.h"
+#endif
+#ifdef HAVE_EVDEV_BACKEND
+#include "../include/backend/evdev.h"
+#endif
+
 enum backend_type {
 	BACKEND_DISPLAY,
 	BACKEND_AUDIO,

@@ -19,6 +19,6 @@
 #ifndef RB_BACKEND_WAYLAND_H
 #define RB_BACKEND_WAYLAND_H
 
-extern struct backend wayland_backend_iface;
+extern struct backend_display_ext wayland_backend_iface;
 
 #endif

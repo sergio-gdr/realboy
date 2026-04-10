@@ -19,6 +19,6 @@
 #ifndef RB_BACKEND_PIPEWIRE_H
 #define RB_BACKEND_PIPEWIRE_H
 
-extern struct backend pipewire_backend_iface;
+extern struct backend_audio_ext pipewire_backend_iface;
 
 #endif
