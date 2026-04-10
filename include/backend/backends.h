@@ -28,7 +28,7 @@ struct backend {
 
 int backends_init();
 void backends_fini();
-int *backends_get_fds();
+int backends_get_fds(int **fds);
 void backends_dispatch(int fd);
 
 #endif

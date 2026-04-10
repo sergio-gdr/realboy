@@ -22,6 +22,7 @@
 
 struct backend *backends[] = { &evdev_backend_iface, &wayland_backend_iface };
 int backend_fds[countof(backends)];
+int num_fds;
 
 void backends_dispatch(int fd) {
 	for (int i = 0; i < countof(backends); i++) {
@@ -29,8 +30,9 @@ void backends_dispatch(int fd) {
 	}
 }
 
-int *backends_get_fds() {
-	return backend_fds;
+int backends_get_fds(int **fds) {
+	*fds = backend_fds;
+	return num_fds;
 }
 
 void backends_fini() {
@@ -49,13 +51,12 @@ int backends_init() {
 		}
 	}
 
-	int num_fds = 0;
 	for (int i = 0; i < countof(backends); i++) {
 		backend_fds[i] = backends[i]->get_fd();
 		num_fds++;
 	}
 
-	return num_fds;
+	return 0;
 
 err_init:
 	backends_fini();

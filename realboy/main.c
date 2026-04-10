@@ -30,22 +30,16 @@
 
 FILE *rom;
 
-static sigjmp_buf fini;
-
 static pthread_cond_t cond_init = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t mtx_init = PTHREAD_MUTEX_INITIALIZER;
 static bool init_success;
 static pthread_t epoll_thread;
-
-static bool is_server_mode;
-
-static int num_fds;
-
-static void *io_poll(void *val) {
+static void *io_poll(void *v) {
 	int epoll_fd = epoll_create1(0);
 	init_success = true;
+	int *fds;
 
-	int *fds = backends_get_fds();
+	int num_fds = backends_get_fds(&fds);
 	for (int i = 0; i < num_fds; i++) {
 		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fds[i],
 				&(struct epoll_event) {
@@ -79,12 +73,14 @@ static void *io_poll(void *val) {
 	pthread_exit(NULL);
 }
 
+static sigjmp_buf fini;
 static void sigterm_handler(int sig) {
 	longjmp(fini, 1);
 }
 
 int main(int argc, char *argv[]) {
 	int ret = 0;
+	bool is_server_mode;
 
 	if (argc == 1) {
 		return 0;
@@ -119,7 +115,6 @@ int main(int argc, char *argv[]) {
 	if (ret == -1) {
 		goto err_backends;
 	}
-	num_fds = ret;
 
 	// wait for the poll thread to initialize.
 	pthread_mutex_lock(&mtx_init);
