@@ -16,9 +16,41 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef RB_EVDEV_H
-#define RB_EVDEV_H
+#include "wayland-client.h"
 
-extern struct backend evdev_backend_iface;
+#include "wayland.h"
+#include "../include/backend/backends.h"
 
-#endif
+struct wl_display *display;
+
+static void backend_dispatch(int fd) {
+	if (fd == wl_display_get_fd(display)) {
+		wl_display_dispatch(display);
+	}
+}
+
+static int backend_get_fd() {
+	return wl_display_get_fd(display);
+}
+
+static void backend_fini() {
+	wl_display_disconnect(display);
+}
+
+static int backend_init() {
+	display = wayland_init();
+
+	return 0;
+}
+
+extern bool wayland_is_focus();
+struct backend_display_ext wayland_backend_iface =
+{
+	.backend.type = BACKEND_DISPLAY,
+	.backend.init = backend_init,
+	.backend.fini = backend_fini,
+	.backend.get_fd = backend_get_fd,
+	.backend.dispatch = backend_dispatch,
+	.is_focus = wayland_is_focus
+};
+

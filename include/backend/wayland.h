@@ -19,16 +19,6 @@
 #ifndef RB_BACKEND_WAYLAND_H
 #define RB_BACKEND_WAYLAND_H
 
-#include "backends.h"
-#include "render.h"
-
-int wayland_backend_init();
-void wayland_backend_fini();
-int wayland_backend_get_fd();
-bool wayland_backend_is_focus();
-void wayland_backend_dispatch(int fd);
-void wayland_backend_set_framebuffer(const struct framebuffer *fb);
-
 extern struct backend wayland_backend_iface;
 
 #endif

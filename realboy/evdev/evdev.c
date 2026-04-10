@@ -24,16 +24,9 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
-#include "monitor.h"
-#include "backend/evdev.h"
+#include <libevdev/libevdev.h>
 
-struct backend evdev_backend_iface =
-{
-	.init = evdev_backend_init,
-	.fini = evdev_backend_fini,
-	.get_fd = evdev_backend_get_fd,
-	.dispatch = evdev_backend_dispatch
-};
+#include "monitor.h"
 
 static const char *dev_input_path = "/dev/input/";
 
@@ -43,7 +36,7 @@ static int num_evdevs;
 
 static int evdev_poll_fd;
 
-void evdev_backend_dispatch(int fd) {
+void evdev_dispatch(int fd) {
 	if (fd != evdev_poll_fd) {
 		return;
 	}
@@ -78,18 +71,14 @@ void evdev_backend_dispatch(int fd) {
 	}
 }
 
-int evdev_backend_get_fd() {
-	return evdev_poll_fd;
-}
-
-void evdev_backend_fini() {
+void evdev_fini() {
 	for (int i = 0; i < num_evdevs; i++) {
 		libevdev_free(evdevs[i]);
 	}
 	close(evdev_poll_fd);
 }
 
-int evdev_backend_init() {
+int evdev_init() {
 	evdev_poll_fd = epoll_create1(0);
 	if (!evdev_poll_fd) {
 		perror("epoll_create1()");
@@ -148,7 +137,7 @@ int evdev_backend_init() {
 	}
 	closedir(input);
 
-	return 0;
+	return evdev_poll_fd;
 
 err:
 	for (int i = 0; i < num_evdevs; i++) {

@@ -15,28 +15,43 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-#include "backend/wayland.h"
-#include "backend/evdev.h"
+#include <stdio.h>
 
-#define countof(arr) (sizeof(arr) / sizeof((arr)[0]))
+#include "../include/backend/backends.h"
 
-struct backend *backends[] = { &evdev_backend_iface, &wayland_backend_iface };
-int backend_fds[countof(backends)];
-int num_fds;
+#include "config.h"
+
+#ifdef HAVE_WAYLAND_BACKEND
+#include "../include/backend/wayland.h"
+#endif
+#ifdef HAVE_EVDEV_BACKEND
+#include "../include/backend/evdev.h"
+#endif
+
+struct backend *backends[NUM_BACKENDS] =
+{
+#ifdef HAVE_WAYLAND_BACKEND
+	&wayland_backend_iface,
+#endif
+#ifdef HAVE_EVDEV_BACKEND
+	&evdev_backend_iface,
+#endif
+};
+int backend_fds[NUM_BACKENDS];
 
 void backends_dispatch(int fd) {
-	for (int i = 0; i < countof(backends); i++) {
+	for (int i = 0; i < NUM_BACKENDS; i++) {
 		backends[i]->dispatch(fd);
 	}
 }
 
 int backends_get_fds(int **fds) {
 	*fds = backend_fds;
-	return num_fds;
+	return NUM_BACKENDS;
 }
 
 void backends_fini() {
-	for (int i = 0; i < countof(backends); i++) {
+	for (int i = 0; i < NUM_BACKENDS; i++) {
 		backends[i]->fini();
 	}
 }
@@ -44,16 +59,15 @@ void backends_fini() {
 int backends_init() {
 	int ret;
 
-	for (int i = 0; i < countof(backends); i++) {
+	for (int i = 0; i < NUM_BACKENDS; i++) {
 		ret = backends[i]->init();
 		if (ret == -1) {
 			goto err_init;
 		}
 	}
 
-	for (int i = 0; i < countof(backends); i++) {
+	for (int i = 0; i < NUM_BACKENDS; i++) {
 		backend_fds[i] = backends[i]->get_fd();
-		num_fds++;
 	}
 
 	return 0;
@@ -61,4 +75,13 @@ int backends_init() {
 err_init:
 	backends_fini();
 	return -1;
+}
+
+struct backend *backends_get_backend_by_type(enum backend_type type) {
+	for (int i = 0; i < NUM_BACKENDS; i++) {
+		if (backends[i]->type == type)
+			return backends[i];
+	}
+
+	return NULL;
 }

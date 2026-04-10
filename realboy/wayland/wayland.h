@@ -16,9 +16,10 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef RB_EVDEV_H
-#define RB_EVDEV_H
+#ifndef WAYLAND_H
+#define WAYLAND_H
 
-extern struct backend evdev_backend_iface;
+struct wl_display *wayland_init();
+void wayland_dispatch(int fd);
 
 #endif

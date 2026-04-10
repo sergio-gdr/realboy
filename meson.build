@@ -8,7 +8,7 @@ project(
 	],
 )
 
-subdir('realboy/backend/wayland/protocols')
+subdir('realboy/wayland/protocols')
 
 includes = include_directories(['include', 'build/realboy/backend/wayland/protocols'])
 subdir('realboy')

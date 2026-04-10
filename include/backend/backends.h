@@ -19,16 +19,31 @@
 #ifndef RB_BACKENDS_H
 #define RB_BACKENDS_H
 
+enum backend_type {
+	BACKEND_DISPLAY,
+	BACKEND_AUDIO,
+	BACKEND_INPUT
+};
+
 struct backend {
+	enum backend_type type;
 	int (*init)();
 	void (*fini)();
 	void (*dispatch)(int fd);
 	int (*get_fd)();
+};
+struct backend_display_ext {
+	struct backend backend;
+	bool (*is_focus)();
+};
+struct backend_audio_ext {
+	struct backend backend;
 };
 
 int backends_init();
 void backends_fini();
 int backends_get_fds(int **fds);
 void backends_dispatch(int fd);
+struct backend *backends_get_backend_by_type(enum backend_type type);
 
 #endif

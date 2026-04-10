@@ -16,9 +16,30 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef RB_EVDEV_H
-#define RB_EVDEV_H
+#include "../include/backend/backends.h"
+#include "evdev/evdev.h"
 
-extern struct backend evdev_backend_iface;
+int evdev_fd;
 
-#endif
+static int backend_get_fd() {
+	return evdev_fd;
+}
+
+static int backend_init() {
+	evdev_fd = evdev_init();
+
+	if (evdev_fd == -1)
+		return -1;
+
+	return 0;
+}
+
+struct backend evdev_backend_iface =
+{
+	.type = BACKEND_INPUT,
+	.init = backend_init,
+	.fini = evdev_fini,
+	.get_fd = backend_get_fd,
+	.dispatch = evdev_dispatch
+};
+

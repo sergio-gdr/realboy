@@ -16,9 +16,11 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef RB_EVDEV_H
-#define RB_EVDEV_H
+#ifndef EVDEV_H
+#define EVDEV_H
 
-extern struct backend evdev_backend_iface;
+int evdev_init();
+void evdev_fini();
+void evdev_dispatch(int fd);
 
 #endif

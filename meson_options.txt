@@ -4,3 +4,17 @@ option(
 	value: true,
 	description: 'Enable support for libemu'
 )
+
+option(
+	'wayland-backend',
+	type: 'boolean',
+	value: true,
+	description: 'Enable support for wayland backend'
+)
+
+option(
+	'evdev-backend',
+	type: 'boolean',
+	value: true,
+	description: 'Enable support for evdev backend'
+)

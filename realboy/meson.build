@@ -1,7 +1,9 @@
 sources = files(
-	'backend/wayland/wayland.c',
-	'backend/evdev/evdev.c',
-	'backend/backends.c',
+	'wayland/wayland.c',
+	'wayland/backend.c',
+	'evdev/evdev.c',
+	'evdev/backend.c',
+	'backends.c',
 	'render.c',
 	'emu/cpu/cpu.c',
 	'emu/cpu/cpu_ops.c',
@@ -37,6 +39,18 @@ if libemu.found() and get_option('libemu') == true
     realboy_dependencies += libemu
     internal_config.set('HAVE_LIBEMU', '1')
 endif
+
+num_backends = 0
+if get_option('wayland-backend') == true
+    internal_config.set('HAVE_WAYLAND_BACKEND', '1')
+	num_backends += 1
+endif
+if get_option('evdev-backend') == true
+    internal_config.set('HAVE_EVDEV_BACKEND', '1')
+	num_backends += 1
+endif
+internal_config.set('NUM_BACKENDS', num_backends)
+
 configure_file(output : 'config.h',
                configuration : internal_config)
 

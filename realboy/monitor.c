@@ -16,11 +16,10 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include "backend/backends.h"
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 #include <time.h>
 
@@ -32,13 +31,14 @@
 
 #include "cpu.h"
 #include "mbc.h"
-#include "backend/wayland.h"
 
 #include "ppu.h"
 
 #include "config.h"
 
 #ifdef HAVE_LIBEMU
+	#include <stdlib.h>
+	#include <string.h>
 	#include <libemu.h>
 	#include "server.h"
 	list_t *breakpoint_list;
@@ -198,7 +198,9 @@ void monitor_wr_mem(uint16_t addr, uint8_t value) {
 }
 
 void monitor_set_key(struct input_event *ev) {
-	if (wayland_backend_is_focus()) {
+	struct backend_display_ext *backend = (struct backend_display_ext *)backends_get_backend_by_type(BACKEND_DISPLAY);
+
+	if (backend->is_focus()) {
 		pthread_mutex_lock(&mtx_buttons);
 		switch (ev->code) {
 			case KEY_ENTER:
