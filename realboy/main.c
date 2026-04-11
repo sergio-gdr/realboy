@@ -37,6 +37,8 @@ static pthread_cond_t cond_init = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t mtx_init = PTHREAD_MUTEX_INITIALIZER;
 static bool init_success; // protected by the above
 static void *io_poll(void *v) {
+	pthread_mutex_lock(&mtx_init);
+
 	int epoll_fd = epoll_create1(0);
 	init_success = true;
 	int *fds;
@@ -67,7 +69,6 @@ static void *io_poll(void *v) {
 	}
 
 	// signal the main thread about init success or failure.
-	pthread_mutex_lock(&mtx_init);
 	pthread_mutex_unlock(&mtx_init);
 	pthread_cond_signal(&cond_init);
 
