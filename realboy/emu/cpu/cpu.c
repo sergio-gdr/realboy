@@ -26,10 +26,6 @@
 
 #include "config.h"
 
-#ifdef HAVE_LIBEMU
-	#include <libemu.h>
-#endif
-
 // main cpu structure
 // holds registers and other state
 cpu_t cpu;
@@ -137,7 +133,6 @@ uint8_t cpu_rd(uint16_t addr) {
 	}
 }
 
-#ifdef HAVE_LIBEMU
 static uint16_t peek_get_cpu_reg(uintptr_t cpu_reg) {
 	enum cpu_reg reg = cpu_reg;
 	switch (reg) {
@@ -196,7 +191,6 @@ void cpu_peek(struct peek *peek, struct peek_reply *reply) {
 			fprintf(stderr, "error: cpu_peek()");
 	}
 }
-#endif
 
 void cpu_wr(uint16_t addr, uint8_t value) {
 	struct cpu_state *state = &cpu.state;

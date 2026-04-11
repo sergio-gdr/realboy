@@ -23,7 +23,14 @@
 
 #include "monitor.h"
 
-#include "config.h"
+enum cpu_reg {
+	CPU_REG_AF,
+	CPU_REG_BC,
+	CPU_REG_DE,
+	CPU_REG_HL,
+	CPU_REG_SP,
+	CPU_REG_PC
+};
 
 // types of 'peek' provided by the cpu module.
 enum cpu_peek_type {
@@ -48,9 +55,7 @@ void cpu_init();
 void cpu_wr(uint16_t addr, uint8_t value);
 uint8_t cpu_rd(uint16_t addr);
 
-#ifdef HAVE_LIBEMU
 void cpu_peek(struct peek *peek, struct peek_reply *reply);
-#endif
 
 // execute the next instruction.
 int cpu_exec_next();

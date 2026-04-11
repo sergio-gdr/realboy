@@ -6,7 +6,9 @@ sources = files(
 	'evdev/evdev.c',
 	'evdev/backend.c',
 	'backends.c',
+	'list.c',
 	'render.c',
+	'server.c',
 	'emu/cpu/cpu.c',
 	'emu/cpu/cpu_ops.c',
 	'emu/mem/mbc.c',
@@ -37,7 +39,6 @@ libemu = dependency(
 
 internal_config = configuration_data()
 if libemu.found() and get_option('libemu') == true
-    sources += files('server.c')
     realboy_dependencies += libemu
     internal_config.set('HAVE_LIBEMU', '1')
 endif

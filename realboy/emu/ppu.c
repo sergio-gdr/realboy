@@ -531,7 +531,6 @@ void ppu_refresh(uint8_t ticks) {
 	}
 }
 
-#ifdef HAVE_LIBEMU
 static uint16_t peek_get_ppu_reg(uintptr_t ppu_reg) {
 	enum ppu_reg reg = ppu_reg;
 	switch (reg) {
@@ -555,4 +554,3 @@ void ppu_peek(struct peek *peek, struct peek_reply *reply) {
 			fprintf(stderr, "error: ppu_peek()");
 	}
 }
-#endif

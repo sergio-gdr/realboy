@@ -23,7 +23,11 @@
 
 #include "monitor.h"
 
-#include "config.h"
+enum ppu_reg {
+	PPU_REG_LCDC = 0xff40,
+	PPU_REG_STAT = 0xff41,
+	PPU_REG_LY = 0xff44
+};
 
 // types of 'peek' provided by the ppu module.
 enum ppu_peek_type {
@@ -40,8 +44,6 @@ void ppu_refresh(uint8_t ticks);
 uint8_t ppu_rd(uint16_t addr);
 void ppu_wr(uint16_t addr, uint8_t value);
 
-#ifdef HAVE_LIBEMU
 void ppu_peek(struct peek *peek, struct peek_reply *reply);
-#endif
 
 #endif

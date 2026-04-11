@@ -19,8 +19,21 @@
 #ifndef RB_SERVER_H
 #define RB_SERVER_H
 
-int server_recv_request_and_dispatch(bool wait_for_request);
+#define _POSIX_C_SOURCE 200809L
+
+#include <pthread.h>
+#include <stdint.h>
+
+int server_recv_request_and_dispatch();
 int server_init(bool wait_for_client);
+void server_fini();
+int server_get_fd();
 bool server_is_client_connected();
+bool server_is_stopped();
+bool server_should_stop_execution();
+
+extern pthread_mutex_t mtx_server;
+extern pthread_cond_t cnd_server_stop;
+extern pthread_rwlock_t quick_lock;
 
 #endif
