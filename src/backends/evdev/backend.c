@@ -17,7 +17,7 @@
  */
 
 #include "../include/backend/backends.h"
-#include "evdev/evdev.h"
+#include "backends/evdev/evdev.h"
 
 int evdev_fd;
 
