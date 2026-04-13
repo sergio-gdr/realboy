@@ -19,7 +19,7 @@
 #include "wayland-client.h"
 
 #include "wayland.h"
-#include "../include/backend/backends.h"
+#include "../include/backends/backends.h"
 
 struct wl_display *display;
 

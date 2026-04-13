@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <sys/epoll.h>
 
-#include "backend/backends.h"
+#include "backends/backends.h"
 #include "monitor.h"
 #include "render.h"
 #include "server.h"
