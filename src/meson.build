@@ -6,6 +6,7 @@ sources = files(
 	'backends/evdev/evdev.c',
 	'backends/evdev/backend.c',
 	'backends/backends.c',
+	'iopoll.c',
 	'list.c',
 	'render.c',
 	'server.c',
