@@ -36,9 +36,6 @@
 
 static mbc_iface_t *mbc_impl;
 
-// these are accessed by the evdev thread and the main thread.
-// protect with a mutex.
-static pthread_mutex_t mtx_buttons = PTHREAD_MUTEX_INITIALIZER;
 static bool start_released=true;
 static bool select_released=true;
 static bool a_released=true;
@@ -115,7 +112,6 @@ uint8_t monitor_rd_mem(uint16_t addr) {
 				}
 				else {
 					uint8_t ret;
-					pthread_mutex_lock(&mtx_buttons);
 					if (tmp_ioregs[addr] & 0x10) {
 						ret = tmp_ioregs[addr] |
 							(start_released<<3|select_released<<2|b_released<<1|a_released);
@@ -124,7 +120,6 @@ uint8_t monitor_rd_mem(uint16_t addr) {
 						ret = tmp_ioregs[addr] |
 							(down_released<<3|up_released<<2|left_released<<1|right_released);
 					}
-					pthread_mutex_unlock(&mtx_buttons);
 					return ret;
 				}
 			}
@@ -184,7 +179,6 @@ void monitor_set_key(struct input_event *ev) {
 	struct backend_display_ext *backend = (struct backend_display_ext *)backends_get_backend_by_type(BACKEND_DISPLAY);
 
 	if (backend->is_focus()) {
-		pthread_mutex_lock(&mtx_buttons);
 		switch (ev->code) {
 			case KEY_ENTER:
 				start_released = !ev->value;
@@ -217,7 +211,6 @@ void monitor_set_key(struct input_event *ev) {
 			default:
 				fprintf(stderr, "monitor_set_key()");
 		}
-		pthread_mutex_unlock(&mtx_buttons);
 	}
 }
 
