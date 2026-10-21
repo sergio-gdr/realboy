@@ -542,7 +542,7 @@ static uint16_t peek_get_ppu_reg(uintptr_t ppu_reg) {
 	}
 }
 
-void ppu_peek(struct peek *peek, struct peek_reply *reply) {
+void ppu_peek(const struct peek *peek, struct peek_reply *reply) {
 	switch (peek->subtype) {
 		case PPU_PEEK_REG:
 			reply->size = sizeof(uint32_t);

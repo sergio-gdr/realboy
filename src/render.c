@@ -38,6 +38,8 @@ typedef struct {
 } render_t;
 render_t render;
 
+static bool render_initialized;
+
 pixman_image_t *mask;
 uint8_t *dmg_buf;
 void render_draw_pixel(int x, int y, uint32_t pixel) {
@@ -60,6 +62,9 @@ int render_get_framebuffer_fd() {
 }
 
 void render_fini() {
+	if (!render_initialized) {
+		return;
+	}
 	pixman_image_set_transform(render.src, NULL);
 	free(render.src);
 	free(render.dst);
@@ -113,6 +118,7 @@ int render_init() {
 	pixman_image_set_transform(render.src, &scale);
 	pixman_image_set_filter(render.src, PIXMAN_FILTER_BILINEAR, nullptr, 0);
 
+	render_initialized = true;
 	return 0;
 err:
 	render_fini();

@@ -19,10 +19,33 @@
 #ifndef RB_SERVER_H
 #define RB_SERVER_H
 
-#define _POSIX_C_SOURCE 200809L
-
-#include <pthread.h>
+#include <stddef.h>
 #include <stdint.h>
+
+enum server_msg {
+	SERVER_MSG_BREAK,
+	SERVER_MSG_UNTIL
+};
+
+typedef struct {
+	size_t size;
+	void *payload;
+} server_reply_t;
+
+typedef struct {
+	void (*dispatch_control_flow_break)(uint32_t addr);
+	void (*dispatch_control_flow_continue)();
+	void (*dispatch_control_flow_delete)(uint32_t addr);
+	void (*dispatch_control_flow_next)();
+	void (*dispatch_control_flow_until)(uint32_t addr);
+	void (*dispatch_monitor_resume)();
+	void (*dispatch_monitor_stop)();
+	server_reply_t (*dispatch_inspect_addr)(uint32_t addr);
+	server_reply_t (*dispatch_inspect_cpu)(uint32_t reg);
+	server_reply_t (*dispatch_inspect_ppu)(uint32_t reg);
+	server_reply_t (*dispatch_inspect_instr_at_addr)(uint32_t addr);
+	server_reply_t (*dispatch_inspect_op_len)(uint32_t addr);
+} server_dispatch_impl_t;
 
 int server_recv_request_and_dispatch();
 int server_init(bool wait_for_client);
@@ -31,9 +54,7 @@ int server_get_fd();
 bool server_is_client_connected();
 bool server_is_stopped();
 bool server_should_stop_execution();
-
-extern pthread_mutex_t mtx_server;
-extern pthread_cond_t cnd_server_stop;
-extern pthread_rwlock_t quick_lock;
+void server_set_dispatch_table(const server_dispatch_impl_t *table);
+int server_send_msg(enum server_msg, uint32_t addr);
 
 #endif

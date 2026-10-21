@@ -19,6 +19,8 @@
 #ifndef RB_IO_H
 #define RB_IO_H
 
-int iopoll_init();
+int events_init();
+void events_fini();
+void events_process(bool block);
 
 #endif

@@ -17,6 +17,7 @@
  */
 
 #define _POSIX_C_SOURCE 200809L
+
 #include <getopt.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -24,7 +25,7 @@
 
 #include "backends/backends.h"
 #include "monitor.h"
-#include "iopoll.h"
+#include "events.h"
 #include "render.h"
 #include "server.h"
 
@@ -59,34 +60,33 @@ int main(int argc, char *argv[]) {
 		if ((rom = fopen(argv[optind], "r")) == NULL) {
 			perror("fopen()");
 			ret = -1;
-			goto err_open;
+			goto out;
 		}
 	}
 
 	ret = render_init();
 	if (ret == -1) {
-		goto err_render;
+		goto out;
 	}
 
 	ret = backends_init();
 	if (ret == -1) {
-		goto err_backends;
+		goto out;
 	}
 
 	ret = server_init(wait_for_client);
 	if (ret == -1) {
-		goto err_server;
+		goto out;
 	}
 
 	ret = monitor_init();
 	if (ret == -1) {
-		goto err_monitor;
+		goto out;
 	}
 
-	// initialize the io poll thread
-	ret = iopoll_init();
+	ret = events_init();
 	if (ret == -1) {
-		goto err_io;
+		goto out;
 	}
 
 	// we handle SIGINT so that the user can ctrl+c to quit.
@@ -102,16 +102,13 @@ int main(int argc, char *argv[]) {
 		ret = monitor_run();
 	}
 
-err_io:
+out:
 	monitor_fini();
-err_monitor:
 	server_fini();
-err_server:
 	backends_fini();
-err_backends:
 	render_fini();
-err_render:
+	events_fini();
 	fclose(rom);
-err_open:
+
 	return ret;
 }

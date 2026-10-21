@@ -55,7 +55,7 @@ void cpu_init();
 void cpu_wr(uint16_t addr, uint8_t value);
 uint8_t cpu_rd(uint16_t addr);
 
-void cpu_peek(struct peek *peek, struct peek_reply *reply);
+void cpu_peek(const struct peek *peek, struct peek_reply *reply);
 
 // execute the next instruction.
 int cpu_exec_next();

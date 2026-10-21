@@ -18,21 +18,23 @@
 
 #define _POSIX_C_SOURCE 200809L
 
-#include "backends/backends.h"
 #include <assert.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
 
-#include <linux/input.h>
-#include <poll.h>
-#include <pthread.h>
-
 #include "monitor.h"
+
+#include "backends/backends.h"
 #include "cpu.h"
+#include "events.h"
+#include "list.h"
 #include "mbc.h"
 #include "ppu.h"
 #include "server.h"
+
+static bool monitor_initialized;
+static bool emulation_paused;
 
 static mbc_iface_t *mbc_impl;
 
@@ -214,34 +216,188 @@ void monitor_set_key(struct input_event *ev) {
 	}
 }
 
-int monitor_run() {
-	while (1) {
-		if (server_is_client_connected()) {
-			pthread_mutex_lock(&mtx_server);
-			if (server_is_stopped()) {
-				pthread_cond_wait(&cnd_server_stop, &mtx_server);
-				pthread_mutex_unlock(&mtx_server);
-				continue;
+static list_t *breakpoint_list;
+static uint16_t until_addr;
+static bool control_flow_continue;
+static bool control_flow_until;
+static bool control_flow_next;
+
+static bool check_hit_breakpoint() {
+	bool hit = false;
+	if (!server_is_client_connected()) {
+		return hit;
+	}
+#ifdef HAVE_LIBEMU
+	struct peek peek = {};
+	struct peek_reply peek_reply = {};
+	peek.type = PEEK_CPU;
+	peek.subtype = CPU_PEEK_REG;
+	peek.req = CPU_REG_PC;
+	cpu_peek(&peek, &peek_reply);
+	uint32_t addr = *(uint32_t*)peek_reply.payload;
+	free(peek_reply.payload);
+
+	enum server_msg msg;
+	if (control_flow_continue || control_flow_until) {
+		uint32_t breakpoint;
+		list_for_each(breakpoint_list, breakpoint) {
+			if (breakpoint == addr) {
+				msg = SERVER_MSG_BREAK;
+				control_flow_continue = 0;
+				hit = true;
+				break;
 			}
-			pthread_mutex_unlock(&mtx_server);
-			do {
-				exec_next();
-			} while (!server_should_stop_execution());
-			pthread_mutex_lock(&mtx_server);
-			pthread_mutex_unlock(&mtx_server);
-			pthread_cond_signal(&cnd_server_stop);
 		}
-		else {
-			exec_next();
+
+		if (control_flow_until) {
+			if (until_addr == addr) {
+				msg = SERVER_MSG_UNTIL;
+				control_flow_until = false;
+				control_flow_continue = false;
+				until_addr = 0;
+				hit = true;
+			}
+		}
+
+		if (hit) {
+			server_send_msg(msg, addr);
 		}
 	}
-	return -1;
+
+	if (control_flow_next) {
+		control_flow_next = false;
+		hit = true;
+	}
+
+	if (hit) {
+		emulation_paused = true;
+	}
+
+#endif
+	return hit;
+}
+
+static inline server_reply_t do_peek(const struct peek *peek) {
+	struct peek_reply peek_reply;
+	switch (peek->type) {
+		case PEEK_CPU:
+			cpu_peek(peek, &peek_reply);
+			break;
+		case PEEK_PPU:
+			ppu_peek(peek, &peek_reply);
+			break;
+	}
+	return (server_reply_t){ .size = peek_reply.size, .payload = peek_reply.payload };
+}
+
+static server_reply_t handle_inspect_op_len(uint32_t addr) {
+	struct peek peek = {.type = PEEK_CPU, .subtype = CPU_PEEK_OP_LEN, .req = addr};
+	return do_peek(&peek);
+}
+
+static server_reply_t handle_inspect_instr_at_addr(uint32_t addr) {
+	struct peek peek = {.type = PEEK_CPU, .subtype = CPU_PEEK_INSTR_AT_ADDR, .req = addr};
+	return do_peek(&peek);
+}
+
+static server_reply_t handle_inspect_addr(uint32_t addr) {
+	struct peek peek = {.type = PEEK_CPU, .subtype = CPU_PEEK_ADDR, .req = addr};
+	return do_peek(&peek);
+}
+
+static server_reply_t handle_inspect_ppu_reg(uint32_t reg) {
+	struct peek peek = {.type = PEEK_PPU, .subtype = PPU_PEEK_REG, .req = reg};
+	return do_peek(&peek);
+}
+
+static server_reply_t handle_inspect_cpu_reg(uint32_t reg) {
+	struct peek peek = {.type = PEEK_CPU, .subtype = CPU_PEEK_REG, .req = reg};
+	return do_peek(&peek);
+}
+
+static void handle_monitor_resume() {
+	emulation_paused = false;
+}
+
+static void handle_monitor_stop() {
+	emulation_paused = true;
+}
+
+static void handle_control_flow_until(uint32_t addr) {
+	control_flow_until = true;
+	until_addr = addr;
+	emulation_paused = false;
+}
+
+static void handle_control_flow_next() {
+	control_flow_next = true;
+	emulation_paused = false;
+}
+
+static void handle_control_flow_break(uint32_t addr) {
+	list_add(breakpoint_list, (uintptr_t)addr);
+}
+
+static void handle_control_flow_delete(uint32_t addr) {
+	uint32_t breakpoint;
+	list_for_each(breakpoint_list, breakpoint) {
+		if (breakpoint == addr || addr == 0) {
+			list_remove(breakpoint_list, breakpoint);
+			break;
+		}
+	}
+}
+
+static void handle_control_flow_continue() {
+	control_flow_continue = true;
+	emulation_paused = false;
+}
+
+static inline bool emulator_is_running() {
+	return !emulation_paused;
+}
+
+int monitor_run() {
+	server_set_dispatch_table(&(server_dispatch_impl_t) {
+		.dispatch_monitor_resume = handle_monitor_resume,
+		.dispatch_monitor_stop = handle_monitor_stop,
+		.dispatch_control_flow_break = handle_control_flow_break,
+		.dispatch_control_flow_continue = handle_control_flow_continue,
+		.dispatch_control_flow_delete = handle_control_flow_delete,
+		.dispatch_control_flow_next = handle_control_flow_next,
+		.dispatch_control_flow_until = handle_control_flow_until,
+		.dispatch_inspect_cpu = handle_inspect_cpu_reg,
+		.dispatch_inspect_ppu = handle_inspect_ppu_reg,
+		.dispatch_inspect_op_len = handle_inspect_op_len,
+		.dispatch_inspect_instr_at_addr = handle_inspect_instr_at_addr,
+		.dispatch_inspect_addr = handle_inspect_addr
+	});
+
+	while (1) {
+		if (emulator_is_running()) {
+			exec_next();
+		}
+		check_hit_breakpoint();
+		events_process(emulation_paused);
+	}
+
+	return 0;
 }
 
 void monitor_fini() {
+	if (!monitor_initialized)
+		return;
 }
 
 int monitor_init() {
 	mbc_impl = mbc_init();
+
+	breakpoint_list = create_list();
+	if (!breakpoint_list) {
+		return -1;
+	}
+
+	monitor_initialized = true;
+
 	return 0;
 }

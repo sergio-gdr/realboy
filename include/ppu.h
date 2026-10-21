@@ -44,6 +44,6 @@ void ppu_refresh(uint8_t ticks);
 uint8_t ppu_rd(uint16_t addr);
 void ppu_wr(uint16_t addr, uint8_t value);
 
-void ppu_peek(struct peek *peek, struct peek_reply *reply);
+void ppu_peek(const struct peek *peek, struct peek_reply *reply);
 
 #endif

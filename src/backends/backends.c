@@ -19,7 +19,8 @@
 
 #include "../include/backends/backends.h"
 
-#include "config.h"
+static bool backends_initialized;
+static int backend_fds[NUM_BACKENDS];
 
 struct backend *backends[NUM_BACKENDS] =
 {
@@ -33,7 +34,6 @@ struct backend *backends[NUM_BACKENDS] =
 	&evdev_backend_iface,
 #endif
 };
-int backend_fds[NUM_BACKENDS];
 
 void backends_dispatch(int fd) {
 	for (int i = 0; i < NUM_BACKENDS; i++) {
@@ -47,6 +47,9 @@ int backends_get_fds(int **fds) {
 }
 
 void backends_fini() {
+	if (!backends_initialized)
+		return;
+
 	for (int i = 0; i < NUM_BACKENDS; i++) {
 		backends[i]->fini();
 	}
@@ -58,6 +61,10 @@ int backends_init() {
 	for (int i = 0; i < NUM_BACKENDS; i++) {
 		ret = backends[i]->init();
 		if (ret == -1) {
+			while (i) {
+				backends[i]->fini();
+				i--;
+			}
 			goto err_init;
 		}
 	}
@@ -66,10 +73,11 @@ int backends_init() {
 		backend_fds[i] = backends[i]->get_fd();
 	}
 
+	backends_initialized = true;
+
 	return 0;
 
 err_init:
-	backends_fini();
 	return -1;
 }
 

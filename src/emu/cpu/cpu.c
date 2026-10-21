@@ -24,8 +24,6 @@
 
 #include "monitor.h"
 
-#include "config.h"
-
 // main cpu structure
 // holds registers and other state
 cpu_t cpu;
@@ -154,7 +152,7 @@ static uint16_t peek_get_cpu_reg(uintptr_t cpu_reg) {
 	}
 }
 
-void cpu_peek(struct peek *peek, struct peek_reply *reply) {
+void cpu_peek(const struct peek *peek, struct peek_reply *reply) {
 	switch (peek->subtype) {
 		case CPU_PEEK_REG:
 			reply->size = sizeof(uint32_t);
