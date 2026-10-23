@@ -27,7 +27,7 @@
 #include "render.h"
 
 typedef struct {
-	struct framebuffer framebuffer;
+	struct framebuffer_info framebuffer;
 
 	struct wl_display *display;
 	struct wl_compositor *compositor;
@@ -179,7 +179,7 @@ bool wayland_is_focus() {
 	return wayland.is_surface_focused;
 }
 
-void set_framebuffer(const struct framebuffer *fb) {
+void set_framebuffer(const struct framebuffer_info *fb) {
 	wayland_t *w = &wayland;
 
 	w->framebuffer = *fb;
@@ -189,7 +189,7 @@ void set_framebuffer(const struct framebuffer *fb) {
 static const struct wl_callback_listener frame_listener;
 void backend_wayland_update_frame() {
 	wayland_t *w = &wayland;
-	struct framebuffer *fb = &w->framebuffer;
+	struct framebuffer_info *fb = &w->framebuffer;
 
 	struct wl_buffer *wl_buf = wl_shm_pool_create_buffer(w->shm_pool, 0, fb->width, fb->height, fb->stride, WL_SHM_FORMAT_XRGB8888);
 	wl_surface_attach(w->surface, wl_buf, 0, 0);
@@ -241,7 +241,7 @@ struct wl_display *wayland_init() {
 	wl_surface_commit(w->surface);
 	wl_display_flush(w->display);
 
-	struct framebuffer fb = render_get_framebuffer_dimensions();
+	struct framebuffer_info fb = render_get_framebuffer_dimensions();
 	fb.fd = render_get_framebuffer_fd();
 	set_framebuffer(&fb);
 

@@ -22,7 +22,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-struct framebuffer {
+struct framebuffer_info {
 	int fd;
 	size_t width;
 	size_t height;
@@ -33,7 +33,7 @@ struct framebuffer {
 int render_init();
 void render_fini();
 
-struct framebuffer render_get_framebuffer_dimensions();
+struct framebuffer_info render_get_framebuffer_dimensions();
 int render_get_framebuffer_fd();
 void render_draw_pixel(int x, int y, uint32_t pixel);
 void render_draw_framebuffer();

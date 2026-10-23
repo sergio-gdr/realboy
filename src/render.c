@@ -30,31 +30,32 @@
 #include "render.h"
 
 typedef struct {
-	void *data;
-	struct framebuffer framebuffer;
-	pixman_image_t *dst;
-	pixman_image_t *src;
+	struct framebuffer_info fbinfo;
+	pixman_image_t *pix_dst;
+	pixman_image_t *pix_src;
+	uint32_t *raw_buf;
+	uint32_t *final_buf;
 	int framebuffer_fd;
 } render_t;
-render_t render;
 
-static bool render_initialized;
+static render_t render;
 
-pixman_image_t *mask;
-uint8_t *dmg_buf;
+#define DMG_PIXELS_WIDTH 160
+#define DMG_PIXELS_HEIGHT 144
+
 void render_draw_pixel(int x, int y, uint32_t pixel) {
-	assert(x <= 160 && y <= 144);
-	*(uint32_t*)(dmg_buf+(y*160*(32/8))+(x*sizeof(uint32_t))) = pixel;
+	assert(x <= DMG_PIXELS_WIDTH && y <= DMG_PIXELS_HEIGHT);
+	*(render.raw_buf+(y*DMG_PIXELS_WIDTH)+(x)) = pixel;
 }
 
 void render_draw_framebuffer() {
-	pixman_image_composite32(PIXMAN_OP_SRC, render.src, nullptr,
-		render.dst, 0, 0, 0, 0, 0, 0, render.framebuffer.width,
-		render.framebuffer.height);
+	pixman_image_composite32(PIXMAN_OP_SRC, render.pix_src, nullptr,
+		render.pix_dst, 0, 0, 0, 0, 0, 0, render.fbinfo.width,
+		render.fbinfo.height);
 }
 
-struct framebuffer render_get_framebuffer_dimensions() {
-	return render.framebuffer;
+struct framebuffer_info render_get_framebuffer_dimensions() {
+	return render.fbinfo;
 }
 
 int render_get_framebuffer_fd() {
@@ -62,63 +63,69 @@ int render_get_framebuffer_fd() {
 }
 
 void render_fini() {
-	if (!render_initialized) {
-		return;
-	}
-	pixman_image_set_transform(render.src, NULL);
-	free(render.src);
-	free(render.dst);
-	free(dmg_buf);
-	munmap(render.data, render.framebuffer.size * sizeof(uint32_t));
-	close(render.framebuffer_fd);
+	if (render.pix_src)
+		pixman_image_set_transform(render.pix_src, NULL);
+	if (render.final_buf)
+		munmap(render.final_buf, render.fbinfo.size * sizeof(uint32_t));
+	if (render.framebuffer_fd)
+		close(render.framebuffer_fd);
+	free(render.pix_src);
+	free(render.pix_dst);
+	free(render.raw_buf);
 }
 
 int render_init() {
-	render.framebuffer.width = 160*4;
-	render.framebuffer.height = 144*4;
-	render.framebuffer.stride = render.framebuffer.width * (32 / 8);
-	render.framebuffer.size = render.framebuffer.stride * render.framebuffer.height;
+	render.fbinfo.width = DMG_PIXELS_WIDTH*4;
+	render.fbinfo.height = DMG_PIXELS_HEIGHT*4;
+	render.fbinfo.stride = render.fbinfo.width * sizeof(uint32_t);
+	render.fbinfo.size = render.fbinfo.stride * render.fbinfo.height;
+	// create an anonymous file in CPU memory so that we can give an fd with the final rendering to the display backend (Wayland).
 	render.framebuffer_fd = memfd_create("realboy-bg", MFD_CLOEXEC);
 	if (render.framebuffer_fd == -1) {
 		perror("memfd_create()");
 		return -1;
 	}
 
-	struct framebuffer *framebuf = &render.framebuffer;
+	// this makes sure that there is enough disk space to backup the anonymous file
+	struct framebuffer_info *framebuf = &render.fbinfo;
 	if (posix_fallocate(render.framebuffer_fd, 0, framebuf->size * sizeof(uint32_t)) != 0) {
 		perror("posix_fallocate()");
 		goto err;
 	}
-	render.data = mmap(NULL, framebuf->size * sizeof(uint32_t), PROT_READ | PROT_WRITE, MAP_SHARED,
-		render.framebuffer_fd, 0);
-	if (render.data == MAP_FAILED) {
-		perror("mmap()");
-		goto err;
-	}
-	void *src = malloc(framebuf->size * sizeof(uint32_t));
-	if (!src) {
+
+	// this buffer will hold the pixels directly drawn by the PPU
+	render.raw_buf = malloc(DMG_PIXELS_HEIGHT * DMG_PIXELS_WIDTH * sizeof(uint32_t));
+	if (!render.raw_buf) {
 		perror("malloc()");
 		goto err;
 	}
-	dmg_buf = src;
-	render.src = pixman_image_create_bits(PIXMAN_x8r8g8b8, 160, 144, src, 160*(32/8));
-	if (!render.src) {
+	render.pix_src = pixman_image_create_bits(PIXMAN_x8r8g8b8, DMG_PIXELS_WIDTH, DMG_PIXELS_HEIGHT, render.raw_buf,
+		DMG_PIXELS_WIDTH*sizeof(uint32_t));
+	if (!render.pix_src) {
 		perror("pixman_image_create_bits()");
 		goto err;
 	}
-	render.dst = pixman_image_create_bits(PIXMAN_x8r8g8b8, framebuf->width, framebuf->height, render.data, framebuf->stride);
-	if (!render.dst) {
-		perror("pixman_image_create_bits()");
-		goto err;
-	}
-
+	// we apply a transform that will scale by 4x and do 2D bilinear interpolation
 	pixman_transform_t scale;
 	pixman_transform_init_identity(&scale);
-	pixman_transform_init_scale(&scale, (1<<16)/4, (1<<16)/4);
-	pixman_image_set_transform(render.src, &scale);
-	pixman_image_set_filter(render.src, PIXMAN_FILTER_BILINEAR, nullptr, 0);
+	pixman_transform_init_scale(&scale, pixman_double_to_fixed(0.25), pixman_double_to_fixed(0.25));
+	pixman_image_set_transform(render.pix_src, &scale);
+	pixman_image_set_filter(render.pix_src, PIXMAN_FILTER_BILINEAR, nullptr, 0);
 
-	render_initialized = true;
+	// this buffer will hold the final transformation done by pixman to the raw_buf.
+	// it is what will ultimately be sent to the display backend (Wayland) through framebuffer_fd.
+	render.final_buf = mmap(NULL, framebuf->width * framebuf->height * sizeof(uint32_t), PROT_READ | PROT_WRITE, MAP_SHARED,
+		render.framebuffer_fd, 0);
+	if (render.final_buf == MAP_FAILED) {
+		perror("mmap()");
+		goto err;
+	}
+	render.pix_dst = pixman_image_create_bits(PIXMAN_x8r8g8b8, framebuf->width, framebuf->height, render.final_buf, framebuf->stride);
+	if (!render.pix_dst) {
+		perror("pixman_image_create_bits()");
+		goto err;
+	}
+
 	return 0;
 err:
 	render_fini();
