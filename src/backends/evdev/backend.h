@@ -19,6 +19,8 @@
 #ifndef EVDEV_H
 #define EVDEV_H
 
+extern struct backend evdev_backend_iface;
+
 int evdev_init();
 void evdev_fini();
 void evdev_dispatch(int fd);

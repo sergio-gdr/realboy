@@ -17,7 +17,7 @@
  */
 #include <stdio.h>
 
-#include "../include/backends/backends.h"
+#include "backends.h"
 
 static bool backends_initialized;
 static int backend_fds[NUM_BACKENDS];
@@ -37,7 +37,9 @@ struct backend *backends[NUM_BACKENDS] =
 
 void backends_dispatch(int fd) {
 	for (int i = 0; i < NUM_BACKENDS; i++) {
-		backends[i]->dispatch(fd);
+		if (backend_fds[i] == fd) {
+			backends[i]->dispatch(fd);
+		}
 	}
 }
 

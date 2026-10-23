@@ -16,41 +16,262 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <assert.h>
+#include <string.h>
+#include <unistd.h>
+#include <wayland-client-core.h>
+
 #include "wayland-client.h"
+#include "xdg-shell-client-protocol.h"
 
-#include "wayland.h"
-#include "../include/backends/backends.h"
+#include "backends/backends.h"
 
-struct wl_display *display;
+#include "render.h"
 
-static void backend_dispatch(int fd) {
-	if (fd == wl_display_get_fd(display)) {
-		wl_display_dispatch(display);
+typedef struct {
+	struct framebuffer_info framebuffer;
+
+	struct wl_display *display;
+	struct wl_compositor *compositor;
+	struct wl_keyboard *keyboard;
+	struct wl_registry *registry;
+	struct wl_shm *shm;
+	struct wl_seat *seat;
+	struct wl_shm_pool *shm_pool;
+	struct wl_surface *surface;
+	struct xdg_surface *xdg_surface;
+	struct xdg_toplevel *toplevel;
+	struct xdg_wm_base *wm_base;
+	struct wl_callback *frame_callback;
+
+	bool window_configured;
+	bool is_surface_focused;
+} wayland_t;
+wayland_t wayland;
+
+static void
+handle_xdg_toplevel_configure(void *data, struct xdg_toplevel *xdg_toplevel,
+			      int32_t width, int32_t height,
+			      struct wl_array *states)
+{
+}
+
+static void
+handle_xdg_toplevel_close(void *data, struct xdg_toplevel *xdg_toplevel)
+{
+}
+
+static void handle_xdg_configure_bounds(void *data, struct xdg_toplevel *xdg_toplevel,
+		int32_t width, int32_t height) {
+}
+
+static void handle_xdg_wm_capabilities(void *data, struct xdg_toplevel *xdg_toplevel,
+		struct wl_array *capabilities) {
+}
+
+static const struct xdg_toplevel_listener xdg_toplevel_listener = {
+	.configure = handle_xdg_toplevel_configure,
+	.close = handle_xdg_toplevel_close,
+	.configure_bounds = handle_xdg_configure_bounds,
+	.wm_capabilities = handle_xdg_wm_capabilities
+};
+
+void backend_wayland_update_frame();
+static void
+handle_xdg_surface_configure(void *data, struct xdg_surface *surface, uint32_t serial)
+{
+	static bool configured;
+	xdg_surface_ack_configure(surface, serial);
+	if (!configured) {
+		configured = true;
+		backend_wayland_update_frame();
 	}
 }
 
-static int backend_get_fd() {
-	return wl_display_get_fd(display);
+static const struct xdg_surface_listener xdg_surface_listener = {
+	handle_xdg_surface_configure,
+};
+
+static void handle_keyboard_enter(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
+	wayland.is_surface_focused = true;
 }
 
-static void backend_fini() {
-	wl_display_disconnect(display);
+static void handle_keyboard_leave(void *data,
+		struct wl_keyboard *wl_keyboard, uint32_t serial, struct wl_surface *surface) {
+	wayland.is_surface_focused = false;
 }
 
-static int backend_init() {
-	display = wayland_init();
+static void handle_key(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, uint32_t time, uint32_t key, uint32_t state) {
+}
+
+static void handle_keymap(void *data, struct wl_keyboard *wl_keyboard, uint32_t format,
+		int32_t fd, uint32_t size) {
+	close(fd);
+}
+
+static void handle_modifiers(void *data, struct wl_keyboard *wl_keyboard, uint32_t serial,
+		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group) {
+}
+
+static void handle_repeat_info(void *data, struct wl_keyboard *wl_keyboard, int32_t rate,
+		int32_t delay) {
+}
+
+static const struct wl_keyboard_listener keyboard_listener = {
+	.enter = handle_keyboard_enter,
+	.leave = handle_keyboard_leave,
+	.key = handle_key,
+	.keymap = handle_keymap,
+	.modifiers = handle_modifiers,
+	.repeat_info = handle_repeat_info
+};
+
+static void handle_seat_name(void *data, struct wl_seat *wl_seat, const char *name) {
+}
+
+static void handle_seat_capabilities(void *data, struct wl_seat *wl_seat,
+		uint32_t capabilities) {
+	if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
+		wayland.keyboard = wl_seat_get_keyboard(wayland.seat);
+		assert(wayland.keyboard);
+		wl_keyboard_add_listener(wayland.keyboard, &keyboard_listener, NULL);
+	}
+}
+
+static const struct wl_seat_listener seat_listener = {
+	.capabilities = handle_seat_capabilities,
+	.name = handle_seat_name
+};
+
+static void xdg_wm_base_ping(void *data, struct xdg_wm_base *shell, uint32_t serial) {
+	xdg_wm_base_pong(shell, serial);
+}
+
+static const struct xdg_wm_base_listener xdg_wm_base_listener = {
+	xdg_wm_base_ping,
+};
+static void
+registry_handle_global(void *data, struct wl_registry *registry,
+	uint32_t id, const char *interface, uint32_t version) {
+	if (strcmp(interface, "wl_compositor") == 0) {
+		wayland.compositor = wl_registry_bind(registry, id, &wl_compositor_interface, 6);
+	} else if (strcmp(interface, "xdg_wm_base") == 0) {
+		wayland.wm_base = wl_registry_bind(registry, id, &xdg_wm_base_interface, 5);
+		xdg_wm_base_add_listener(wayland.wm_base, &xdg_wm_base_listener, NULL);
+	} else if (strcmp(interface, "wl_shm") == 0) {
+		wayland.shm = wl_registry_bind(registry, id, &wl_shm_interface, 2);
+	} else if (strcmp(interface, "wl_seat") == 0) {
+		wayland.seat = wl_registry_bind(registry, id, &wl_seat_interface, 9);
+		wl_seat_add_listener(wayland.seat, &seat_listener, NULL);
+	}
+}
+
+static void registry_handle_global_remove(void *data, struct wl_registry *registry,
+	uint32_t name) {
+}
+
+static const struct wl_registry_listener registry_listener = {
+	registry_handle_global,
+	registry_handle_global_remove
+};
+
+bool wayland_is_focus() {
+	return wayland.is_surface_focused;
+}
+
+void set_framebuffer(const struct framebuffer_info *fb) {
+	wayland_t *w = &wayland;
+
+	w->framebuffer = *fb;
+	w->shm_pool = wl_shm_create_pool(w->shm, w->framebuffer.fd, w->framebuffer.size);
+}
+
+static const struct wl_callback_listener frame_listener;
+void backend_wayland_update_frame() {
+	wayland_t *w = &wayland;
+	struct framebuffer_info *fb = &w->framebuffer;
+
+	struct wl_buffer *wl_buf = wl_shm_pool_create_buffer(w->shm_pool, 0, fb->width, fb->height, fb->stride, WL_SHM_FORMAT_XRGB8888);
+	wl_surface_attach(w->surface, wl_buf, 0, 0);
+	wl_surface_damage(w->surface, 0, 0, fb->width, fb->height);
+	if (w->frame_callback)
+		wl_callback_destroy(w->frame_callback);
+
+	w->frame_callback = wl_surface_frame(w->surface);
+	wl_callback_add_listener(w->frame_callback, &frame_listener, NULL);
+	wl_surface_commit(w->surface);
+	wl_display_flush(w->display);
+}
+
+static void done(void *data, struct wl_callback *wl_callback,
+	uint32_t callback_data) {
+
+	backend_wayland_update_frame();
+}
+
+static const struct wl_callback_listener frame_listener = {
+        .done = done
+};
+
+static int init() {
+	wayland_t *w = &wayland;
+
+	w->display = wl_display_connect(NULL);
+	if (!w->display) {
+		return -1;
+	}
+	w->registry = wl_display_get_registry(w->display);
+	wl_registry_add_listener(w->registry,
+		&registry_listener, NULL);
+	wl_display_roundtrip(w->display);
+	assert(w->shm);
+
+	w->surface = wl_compositor_create_surface(w->compositor);
+
+	w->xdg_surface = xdg_wm_base_get_xdg_surface(w->wm_base, w->surface);
+	assert(w->xdg_surface);
+	xdg_surface_add_listener(w->xdg_surface, &xdg_surface_listener, NULL);
+
+	w->toplevel = xdg_surface_get_toplevel(w->xdg_surface);
+	xdg_toplevel_add_listener(w->toplevel, &xdg_toplevel_listener, NULL);
+	xdg_toplevel_set_title(w->toplevel, "realboy");
+	xdg_toplevel_set_app_id(w->toplevel, "org.freedesktop.realboy");
+	assert(w->toplevel);
+
+	wl_surface_commit(w->surface);
+	wl_display_flush(w->display);
+
+	struct framebuffer_info fb = render_get_framebuffer_dimensions();
+	fb.fd = render_get_framebuffer_fd();
+	set_framebuffer(&fb);
 
 	return 0;
 }
 
-extern bool wayland_is_focus();
+static void dispatch(int fd) {
+	wl_display_dispatch(wayland.display);
+}
+
+static int get_fd() {
+	return wl_display_get_fd(wayland.display);
+}
+
+static void fini() {
+	wl_display_disconnect(wayland.display);
+}
+
+static bool is_focus() {
+       return wayland.is_surface_focused;
+}
+
 struct backend_display_ext wayland_backend_iface =
 {
 	.backend.type = BACKEND_DISPLAY,
-	.backend.init = backend_init,
-	.backend.fini = backend_fini,
-	.backend.get_fd = backend_get_fd,
-	.backend.dispatch = backend_dispatch,
-	.is_focus = wayland_is_focus
+	.backend.init = init,
+	.backend.fini = fini,
+	.backend.get_fd = get_fd,
+	.backend.dispatch = dispatch,
+	.is_focus = is_focus
 };
-

@@ -16,30 +16,144 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include "../include/backends/backends.h"
-#include "backends/evdev/evdev.h"
+#include <dirent.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/epoll.h>
+#include <unistd.h>
+
+#include <libevdev/libevdev.h>
+
+#include "backends/backends.h"
+#include "monitor.h"
+
+static const char *dev_input_path = "/dev/input/";
+
+#define MAX_EVDEVS 10
+static struct libevdev *evdevs[MAX_EVDEVS];
+static int num_evdevs;
 
 int evdev_fd;
 
-static int backend_get_fd() {
-	return evdev_fd;
+void dispatch(int fd) {
+	struct epoll_event event_list[10];
+	int num_fds;
+	num_fds = epoll_wait(evdev_fd, event_list, 10, 0);
+	for (int i = 0; i < num_fds; i++) {
+		struct input_event ev;
+		int ret;
+		while ( (ret = libevdev_next_event(event_list[i].data.ptr, LIBEVDEV_READ_FLAG_NORMAL, &ev)) >= 0) {
+			if (ev.type == EV_KEY) {
+				switch (ev.code) {
+					case KEY_ENTER:
+					case KEY_SPACE:
+					case KEY_D:
+					case KEY_S:
+					case KEY_LEFT:
+					case KEY_RIGHT:
+					case KEY_UP:
+					case KEY_DOWN:
+					case KEY_H:
+					case KEY_J:
+					case KEY_K:
+					case KEY_L:
+						monitor_set_key(&ev);
+						return;
+					default:
+				}
+			}
+		}
+	}
 }
 
-static int backend_init() {
-	evdev_fd = evdev_init();
+void fini() {
+	for (int i = 0; i < num_evdevs; i++) {
+		libevdev_free(evdevs[i]);
+	}
+	close(evdev_fd);
+}
 
-	if (evdev_fd == -1)
+int init() {
+	evdev_fd = epoll_create1(0);
+	if (!evdev_fd) {
+		perror("epoll_create1()");
 		return -1;
+	}
 
-	return 0;
+	DIR *input = opendir(dev_input_path);
+	if (!input) {
+		perror("opendir()");
+		return -1;
+	}
+
+	struct dirent *entry;
+	while ((entry = readdir(input)) && num_evdevs < MAX_EVDEVS) {
+		if (strncmp(entry->d_name, "event", strlen("event"))) {
+			continue;
+		}
+
+		char *event_path = malloc(strlen(dev_input_path)+strlen(entry->d_name)+1);
+		if (!event_path) {
+			perror("malloc()");
+			goto err;
+		}
+		strcpy(event_path, dev_input_path);
+		strcat(event_path, entry->d_name);
+
+		int device_fd;
+		if ( (device_fd = open(event_path, O_RDONLY|O_NONBLOCK)) == -1) {
+			free(event_path);
+			perror("open()");
+			goto err;
+		}
+		free(event_path);
+
+		struct libevdev *evdev;
+		if (libevdev_new_from_fd(device_fd, &evdev) != 0) {
+			perror("libevdev_new_from_fd()");
+			goto err;
+		}
+		if (libevdev_has_event_type(evdev, EV_KEY) &&
+				libevdev_has_event_code(evdev, EV_KEY, KEY_ENTER)) {
+			if (epoll_ctl(evdev_fd, EPOLL_CTL_ADD, device_fd,
+					&(struct epoll_event) {
+					.events = EPOLLIN,
+					.data.ptr = evdev
+					}) == -1) {
+				perror("epoll_ctl()");
+				goto err;
+			}
+			evdevs[num_evdevs++] = evdev;
+		}
+		else {
+			libevdev_free(evdev);
+			close(device_fd);
+		}
+	}
+	closedir(input);
+
+	return evdev_fd;
+
+err:
+	for (int i = 0; i < num_evdevs; i++) {
+		libevdev_free(evdevs[i]);
+	}
+	closedir(input);
+	close(evdev_fd);
+	return -1;
+}
+
+static int get_fd() {
+	return evdev_fd;
 }
 
 struct backend evdev_backend_iface =
 {
 	.type = BACKEND_INPUT,
-	.init = backend_init,
-	.fini = evdev_fini,
-	.get_fd = backend_get_fd,
-	.dispatch = evdev_dispatch
+	.init = init,
+	.fini = fini,
+	.get_fd = get_fd,
+	.dispatch = dispatch
 };
-

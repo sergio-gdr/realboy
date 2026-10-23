@@ -16,9 +16,48 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef RB_BACKEND_WAYLAND_H
-#define RB_BACKEND_WAYLAND_H
+#ifndef RB_BACKENDS_H
+#define RB_BACKENDS_H
 
-extern struct backend_display_ext wayland_backend_iface;
+#include "config.h"
+
+#ifdef HAVE_WAYLAND_BACKEND
+#include "wayland/backend.h"
+#endif
+#ifdef HAVE_PIPEWIRE_BACKEND
+#include "pipewire/backend.h"
+#endif
+#ifdef HAVE_EVDEV_BACKEND
+#include "evdev/backend.h"
+#endif
+
+enum backend_type {
+	BACKEND_DISPLAY,
+	BACKEND_AUDIO,
+	BACKEND_INPUT
+};
+
+struct backend {
+	enum backend_type type;
+	int (*init)();
+	void (*fini)();
+	void (*dispatch)(int fd);
+	int (*get_fd)();
+};
+
+struct backend_display_ext {
+	struct backend backend;
+	bool (*is_focus)();
+};
+
+struct backend_audio_ext {
+	struct backend backend;
+};
+
+int backends_init();
+void backends_fini();
+int backends_get_fds(int **fds);
+void backends_dispatch(int fd);
+struct backend *backends_get_backend_by_type(enum backend_type type);
 
 #endif
