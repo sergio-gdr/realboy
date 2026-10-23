@@ -15,6 +15,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+#include "config.h"
+
 #include <stdio.h>
 
 #include "backends.h"
@@ -22,16 +24,19 @@
 static bool backends_initialized;
 static int backend_fds[NUM_BACKENDS];
 
-struct backend *backends[NUM_BACKENDS] =
+backend_t *backends[NUM_BACKENDS] =
 {
-#ifdef HAVE_WAYLAND_BACKEND
-	&wayland_backend_iface.backend,
+#ifdef HAVE_EVDEV_BACKEND
+	&evdev_backend_iface.backend,
 #endif
 #ifdef HAVE_PIPEWIRE_BACKEND
 	&pipewire_backend_iface.backend,
 #endif
-#ifdef HAVE_EVDEV_BACKEND
-	&evdev_backend_iface,
+#ifdef HAVE_PIXMAN_BACKEND
+	&pixman_backend_iface.backend,
+#endif
+#ifdef HAVE_WAYLAND_BACKEND
+	&wayland_backend_iface.backend,
 #endif
 };
 
@@ -83,11 +88,48 @@ err_init:
 	return -1;
 }
 
-struct backend *backends_get_backend_by_type(enum backend_type type) {
+backend_t *backends_get_backend_by_type(enum backend_type type) {
 	for (int i = 0; i < NUM_BACKENDS; i++) {
 		if (backends[i]->type == type)
 			return backends[i];
 	}
 
 	return NULL;
+}
+
+static backend_render_ext_t *render;
+void backend_composite_frame() {
+	if (!render) {
+		render = (backend_render_ext_t*)backends_get_backend_by_type(BACKEND_RENDER);
+	}
+	render->composite_frame();
+}
+
+void backend_draw_pixel(int x, int y, uint32_t pixel) {
+	if (!render) {
+		render = (backend_render_ext_t*)backends_get_backend_by_type(BACKEND_RENDER);
+	}
+	render->draw_pixel(x, y, pixel);
+}
+
+void *backend_get_fb_info() {
+	if (!render) {
+		render = (backend_render_ext_t*)backends_get_backend_by_type(BACKEND_RENDER);
+	}
+	return render->get_fb_info();
+}
+
+int backend_get_fb_fd() {
+	if (!render) {
+		render = (backend_render_ext_t*)backends_get_backend_by_type(BACKEND_RENDER);
+	}
+	return render->backend.get_fd();
+}
+
+static backend_input_ext_t *input;
+void *backend_get_buttons() {
+	if (!input) {
+		input = (backend_input_ext_t*)backends_get_backend_by_type(BACKEND_INPUT);
+	}
+	return input->get_buttons();
 }

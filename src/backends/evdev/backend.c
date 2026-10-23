@@ -35,9 +35,21 @@ static const char *dev_input_path = "/dev/input/";
 static struct libevdev *evdevs[MAX_EVDEVS];
 static int num_evdevs;
 
-int evdev_fd;
+static int evdev_fd;
 
-void dispatch(int fd) {
+struct buttons {
+	bool start_released;
+	bool select_released;
+	bool a_released;
+	bool b_released;
+	bool up_released;
+	bool down_released;
+	bool left_released;
+	bool right_released;
+};
+static struct buttons buttons;
+
+static void dispatch(int fd) {
 	struct epoll_event event_list[10];
 	int num_fds;
 	num_fds = epoll_wait(evdev_fd, event_list, 10, 0);
@@ -48,34 +60,47 @@ void dispatch(int fd) {
 			if (ev.type == EV_KEY) {
 				switch (ev.code) {
 					case KEY_ENTER:
-					case KEY_SPACE:
-					case KEY_D:
-					case KEY_S:
-					case KEY_LEFT:
-					case KEY_RIGHT:
-					case KEY_UP:
+						buttons.start_released = !ev.value;
+						break;
 					case KEY_DOWN:
-					case KEY_H:
 					case KEY_J:
+						buttons.down_released = !ev.value;
+						break;
+					case KEY_SPACE:
+						buttons.select_released = !ev.value;
+						break;
+					case KEY_UP:
 					case KEY_K:
+						buttons.up_released = !ev.value;
+						break;
+					case KEY_S:
+						buttons.b_released = !ev.value;
+						break;
+					case KEY_LEFT:
+					case KEY_H:
+						buttons.left_released = !ev.value;
+						break;
+					case KEY_D:
+						buttons.a_released = !ev.value;
+						break;
+					case KEY_RIGHT:
 					case KEY_L:
-						monitor_set_key(&ev);
-						return;
-					default:
+						buttons.right_released = !ev.value;
+						break;
 				}
 			}
 		}
 	}
 }
 
-void fini() {
+static void fini() {
 	for (int i = 0; i < num_evdevs; i++) {
 		libevdev_free(evdevs[i]);
 	}
 	close(evdev_fd);
 }
 
-int init() {
+static int init() {
 	evdev_fd = epoll_create1(0);
 	if (!evdev_fd) {
 		perror("epoll_create1()");
@@ -122,7 +147,7 @@ int init() {
 					.events = EPOLLIN,
 					.data.ptr = evdev
 					}) == -1) {
-				perror("epoll_ctl()");
+				perror("evdev: epoll_ctl()");
 				goto err;
 			}
 			evdevs[num_evdevs++] = evdev;
@@ -149,11 +174,16 @@ static int get_fd() {
 	return evdev_fd;
 }
 
-struct backend evdev_backend_iface =
+static void *get_buttons() {
+	return &buttons;
+}
+
+backend_input_ext_t evdev_backend_iface =
 {
-	.type = BACKEND_INPUT,
-	.init = init,
-	.fini = fini,
-	.get_fd = get_fd,
-	.dispatch = dispatch
+	.backend.type = BACKEND_INPUT,
+	.backend.init = init,
+	.backend.fini = fini,
+	.backend.get_fd = get_fd,
+	.backend.dispatch = dispatch,
+	.get_buttons = get_buttons
 };

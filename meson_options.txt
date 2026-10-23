@@ -25,3 +25,10 @@ option(
 	value: true,
 	description: 'Enable support for evdev backend'
 )
+
+option(
+	'pixman-backend',
+	type: 'boolean',
+	value: true,
+	description: 'Enable support for pixman backend'
+)

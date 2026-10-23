@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2016, 2025 Sergio Gómez Del Real
+ * Copyright (C) 2013-2016, 2025 Sergio Gómez del Real
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,18 +16,13 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef RB_MBC_H
-#define RB_MBC_H
+#ifndef MBC_H
+#define MBC_H
 
 #include <stdint.h>
 
-// since each mbc variant implements different mechanisms for memory access (eg,
-// memory banking), let each implement this interface.
-typedef struct {
-	uint8_t (*rd_mem)(uint16_t addr);
-	void (*wr_mem)(uint16_t addr, uint8_t value);
-} mbc_iface_t;
-
-mbc_iface_t *mbc_init();
+void mbc_wr(uint16_t addr, uint8_t value);
+uint8_t mbc_rd(uint16_t addr);
+int mbc_init();
 
 #endif

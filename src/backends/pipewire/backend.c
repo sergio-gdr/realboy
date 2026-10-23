@@ -34,7 +34,7 @@ static int backend_init() {
 	return 0;
 }
 
-struct backend_audio_ext pipewire_backend_iface =
+backend_audio_ext_t pipewire_backend_iface =
 {
 	.backend.type = BACKEND_DISPLAY,
 	.backend.init = backend_init,

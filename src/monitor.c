@@ -16,6 +16,8 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include "config.h"
+
 #define _POSIX_C_SOURCE 200809L
 
 #include <assert.h>
@@ -25,27 +27,14 @@
 
 #include "monitor.h"
 
-#include "backends/backends.h"
 #include "cpu.h"
 #include "events.h"
 #include "list.h"
-#include "mbc.h"
 #include "ppu.h"
 #include "server.h"
 
 static bool monitor_initialized;
 static bool emulation_paused;
-
-static mbc_iface_t *mbc_impl;
-
-static bool start_released=true;
-static bool select_released=true;
-static bool a_released=true;
-static bool b_released=true;
-static bool up_released=true;
-static bool down_released=true;
-static bool left_released=true;
-static bool right_released=true;
 
 static void exec_next() {
 	int cycles = cpu_exec_next();
@@ -79,141 +68,6 @@ void monitor_throttle_fps() {
 	}
 	struct timespec spec = { .tv_sec = 0, .tv_nsec = 1000000000/sleep_factor };
 	nanosleep(&spec, NULL);
-}
-
-uint8_t tmp_ioregs[0xffff];
-uint8_t monitor_rd_mem(uint16_t addr) {
-	if ((addr >= 0x8000 && addr <= 0x9fff) ||
-			(addr >= 0xfe00 && addr <= 0xfe9f) ||
-			(addr >= 0xff40 && addr <= 0xff4b)) {
-		return ppu_rd(addr);
-	}
-	if (addr >= 0xc000 && addr <= 0xdfff) {
-		return cpu_rd(addr);
-	}
-	if (addr >= 0xff80 && addr <= 0xfffe) {
-		return cpu_rd(addr);
-	}
-	if (addr <= 0xbfff) {
-		return mbc_impl->rd_mem(addr);
-	}
-
-	switch (addr) {
-		case 0xffff:
-		case 0xff0f:
-		case 0xff04:
-		case 0xff05:
-		case 0xff06:
-		case 0xff07:
-		case 0xff50:
-			return cpu_rd(addr);
-		default:
-			if (addr == 0xff00) {
-				if ((tmp_ioregs[addr] & 0x30) == 0x30) {
-					return 0x3f;
-				}
-				else {
-					uint8_t ret;
-					if (tmp_ioregs[addr] & 0x10) {
-						ret = tmp_ioregs[addr] |
-							(start_released<<3|select_released<<2|b_released<<1|a_released);
-					}
-					else {
-						ret = tmp_ioregs[addr] |
-							(down_released<<3|up_released<<2|left_released<<1|right_released);
-					}
-					return ret;
-				}
-			}
-			else {
-				return tmp_ioregs[addr];
-			}
-	}
-}
-
-void monitor_wr_mem(uint16_t addr, uint8_t value) {
-	if (addr == 0xffff) {
-		cpu_wr(addr, value);
-	}
-	else if (addr == 0xff0f) {
-		cpu_wr(addr, value);
-	}
-	else if (addr == 0xff04) {
-		cpu_wr(addr, value);
-	}
-	else if (addr == 0xff05) {
-		cpu_wr(addr, value);
-	}
-	else if (addr == 0xff06) {
-		cpu_wr(addr, value);
-	}
-	else if (addr == 0xff07) {
-		cpu_wr(addr, value);
-	}
-	else if (addr == 0xff50) {
-		cpu_wr(addr, value);
-		mbc_impl->wr_mem(addr, value);
-	}
-	else if ((addr >= 0x8000 && addr <= 0x9fff) ||
-			(addr >= 0xfe00 && addr <= 0xfe9f) ||
-			(addr >= 0xff40 && addr <= 0xff4b)) {
-		ppu_wr(addr, value);
-	}
-	else if (addr >= 0xc000 && addr <= 0xdfff) {
-		cpu_wr(addr, value);
-	}
-	else if (addr >= 0xff80 && addr <=	0xfffe) {
-		cpu_wr(addr, value);
-	}
-	else if (addr <= 0xbfff) {
-		mbc_impl->wr_mem(addr, value);
-	}
-	else {
-		if (addr == 0xff00) {
-			tmp_ioregs[addr] = value&0x30;
-		}
-		else
-			tmp_ioregs[addr] = value;
-	}
-}
-
-void monitor_set_key(struct input_event *ev) {
-	struct backend_display_ext *backend = (struct backend_display_ext *)backends_get_backend_by_type(BACKEND_DISPLAY);
-
-	if (backend->is_focus()) {
-		switch (ev->code) {
-			case KEY_ENTER:
-				start_released = !ev->value;
-				break;
-			case KEY_DOWN:
-			case KEY_J:
-				down_released = !ev->value;
-				break;
-			case KEY_SPACE:
-				select_released = !ev->value;
-				break;
-			case KEY_UP:
-			case KEY_K:
-				up_released = !ev->value;
-				break;
-			case KEY_S:
-				b_released = !ev->value;
-				break;
-			case KEY_LEFT:
-			case KEY_H:
-				left_released = !ev->value;
-				break;
-			case KEY_D:
-				a_released = !ev->value;
-				break;
-			case KEY_RIGHT:
-			case KEY_L:
-				right_released = !ev->value;
-				break;
-			default:
-				fprintf(stderr, "monitor_set_key()");
-		}
-	}
 }
 
 static list_t *breakpoint_list;
@@ -390,7 +244,7 @@ void monitor_fini() {
 }
 
 int monitor_init() {
-	mbc_impl = mbc_init();
+	cpu_init();
 
 	breakpoint_list = create_list();
 	if (!breakpoint_list) {

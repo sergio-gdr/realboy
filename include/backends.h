@@ -16,13 +16,30 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef EVDEV_H
-#define EVDEV_H
+#ifndef RB_BACKENDS_H
+#define RB_BACKENDS_H
 
-extern struct backend evdev_backend_iface;
+#include <stddef.h>
+#include <stdint.h>
 
-int evdev_init();
-void evdev_fini();
-void evdev_dispatch(int fd);
+struct framebuffer_info {
+	int fd;
+	size_t width;
+	size_t height;
+	size_t stride;
+	size_t size;
+};
+
+int backends_init();
+void backends_fini();
+int backends_get_fds(int **fds);
+void backends_dispatch(int fd);
+
+void backend_draw_pixel(int x, int y, uint32_t pixel);
+void backend_composite_frame();
+void *backend_get_fb_info();
+int backend_get_fb_fd();
+
+void *backend_get_buttons();
 
 #endif

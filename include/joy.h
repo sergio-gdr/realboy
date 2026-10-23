@@ -16,25 +16,13 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef RB_RENDER_H
-#define RB_RENDER_H
+#ifndef RB_JOY_H
+#define RB_JOY_H
 
-#include <stddef.h>
 #include <stdint.h>
 
-struct framebuffer_info {
-	int fd;
-	size_t width;
-	size_t height;
-	size_t stride;
-	size_t size;
-};
+// access joystick's internal state.
+uint8_t joy_rd(uint16_t addr);
+void joy_wr(uint16_t addr, uint8_t value);
 
-int render_init();
-void render_fini();
-
-struct framebuffer_info render_get_framebuffer_dimensions();
-int render_get_framebuffer_fd();
-void render_draw_pixel(int x, int y, uint32_t pixel);
-void render_draw_framebuffer();
 #endif

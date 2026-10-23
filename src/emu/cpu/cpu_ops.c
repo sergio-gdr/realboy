@@ -117,7 +117,7 @@ static int op_ld_b_l() {
 }
 
 static int op_ld_b_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_LD_REG(REG_B, load);
 	return 2;
 }
@@ -317,7 +317,7 @@ static int op_ld_sp_n16() {
 }
 
 #define DO_LD_MEM(addr, value) \
-	monitor_wr_mem(addr, value);
+	cpu_wr_mem(addr, value);
 
 #define OP_LD_MEM_REG(addr, reg) \
 	DO_LD_MEM(addr, reg) \
@@ -360,7 +360,7 @@ static int op_ld_ind_hl_a() {
 }
 
 #define OP_LD_REG_MEM(reg, addr) \
-	uint8_t load = monitor_rd_mem(addr); \
+	uint8_t load = cpu_rd_mem(addr); \
 	DO_LD_REG(reg, load) \
 	ADVANCE_PC(1); \
 	return 2; \
@@ -394,7 +394,7 @@ static int op_ld_a_n8() {
 }
 
 #define OP_LD_A_IND_REG(reg) \
-	uint8_t load = monitor_rd_mem(reg); \
+	uint8_t load = cpu_rd_mem(reg); \
 	DO_LD_REG(REG_A, load); \
 	return 2;
 
@@ -412,7 +412,7 @@ static int op_ld_a_ind_hl() {
 
 static int op_ld_a_ind_a16() {
 	uint16_t addr = RD_WORD(REG_PC);
-	REG_A = monitor_rd_mem(addr);
+	REG_A = cpu_rd_mem(addr);
 	ADVANCE_PC(2);
 	return 4;
 }
@@ -423,55 +423,55 @@ static int op_ld_sp_hl() {
 }
 
 static int op_ldi_ind_hl_a() {
-	monitor_wr_mem(REG_HL, REG_A);
+	cpu_wr_mem(REG_HL, REG_A);
 	cpu.state.registers.hl++;
 	return 2;
 }
 
 static int op_ldi_a_ind_hl() {
-	cpu.state.registers.a = monitor_rd_mem(REG_HL);
+	cpu.state.registers.a = cpu_rd_mem(REG_HL);
 	cpu.state.registers.hl++;
 	return 2;
 }
 
 static int op_ldd_ind_hl_a() {
-	monitor_wr_mem(REG_HL, REG_A);
+	cpu_wr_mem(REG_HL, REG_A);
 	cpu.state.registers.hl--;
 	return 2;
 }
 
 static int op_ldd_a_ind_hl() {
-	cpu.state.registers.a = monitor_rd_mem(REG_HL);
+	cpu.state.registers.a = cpu_rd_mem(REG_HL);
 	cpu.state.registers.hl--;
 	return 2;
 }
 
 static int op_ld_c_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_LD_REG(REG_C, load);
 	return 1;
 }
 
 static int op_ld_d_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_LD_REG(REG_D, load);
 	return 1;
 }
 
 static int op_ld_e_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_LD_REG(REG_E, load);
 	return 1;
 }
 
 static int op_ld_h_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_LD_REG(REG_H, load);
 	return 1;
 }
 
 static int op_ld_l_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_LD_REG(REG_L, load);
 	return 1;
 }
@@ -484,20 +484,20 @@ static int op_ld_ind_a16_sp() {
 }
 
 static int op_ld_ind_hl_n8() {
-	uint8_t load = monitor_rd_mem(REG_PC);
-	monitor_wr_mem(REG_HL, load);
+	uint8_t load = cpu_rd_mem(REG_PC);
+	cpu_wr_mem(REG_HL, load);
 	ADVANCE_PC(1);
 	return 3;
 }
 
 static int op_ld_ind_a16_a() {
-	monitor_wr_mem(RD_WORD(REG_PC), REG_A);
+	cpu_wr_mem(RD_WORD(REG_PC), REG_A);
 	ADVANCE_PC(2);
 	return 4;
 }
 
 static int op_ld_hl_sp_e8() {
-	int8_t load = monitor_rd_mem(REG_PC);
+	int8_t load = cpu_rd_mem(REG_PC);
 	UNSET_FLAGS_ALL;
 	SET_FLAG(BOOL_TO_HALF_CARRY_FLAG(IS_ADD_HALF_CARRY(REG_SP, load)));
 	cpu.state.registers.hl = REG_SP+load;
@@ -517,26 +517,26 @@ static int op_ld_hl_sp_e8() {
 	return 1;
 
 static int op_ldh_ind_a8_a() {
-	uint16_t addr = monitor_rd_mem(REG_PC);
+	uint16_t addr = cpu_rd_mem(REG_PC);
 	addr |= 0xff00;
-	monitor_wr_mem(addr, REG_A);
+	cpu_wr_mem(addr, REG_A);
 	ADVANCE_PC(1);
 	return 2;
 }
 
 static int op_ldh_ind_c_a() {
-	monitor_wr_mem(0xff00+REG_C, REG_A);
+	cpu_wr_mem(0xff00+REG_C, REG_A);
 	return 2;
 }
 
 static int op_ldh_a_ind_a8() {
-	REG_A = monitor_rd_mem(0xff00+monitor_rd_mem(REG_PC));
+	REG_A = cpu_rd_mem(0xff00+cpu_rd_mem(REG_PC));
 	ADVANCE_PC(1);
 	return 3;
 }
 
 static int op_ldh_a_ind_c() {
-	REG_A = monitor_rd_mem(0xff00 + REG_C);
+	REG_A = cpu_rd_mem(0xff00 + REG_C);
 	return 2;
 }
 
@@ -589,11 +589,11 @@ static int op_inc_sp() {
 }
 
 static int op_inc_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	UNSET_FLAG(FLAG_ZERO|FLAG_HCARRY|FLAG_SUB);
 	SET_FLAG(BOOL_TO_HALF_CARRY_FLAG((bool)(((load) ^ 1 ^ (load + 1))&0x10)));
 	load++;
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	SET_FLAG(BOOL_TO_ZERO_FLAG(load == 0));
 	return 3;
 }
@@ -655,12 +655,12 @@ static int op_dec_sp() {
 }
 
 static int op_dec_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	UNSET_FLAG(FLAG_ZERO|FLAG_HCARRY);
 	SET_FLAG(BOOL_TO_HALF_CARRY_FLAG((bool)(((load) ^ 1 ^ (load - 1))&0x10)));
 	SET_FLAG(FLAG_SUB);
 	load--;
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	SET_FLAG(BOOL_TO_ZERO_FLAG(load == 0));
 	return 3;
 }
@@ -728,20 +728,20 @@ static int op_add_hl_sp() {
 }
 
 static int op_add_a_ind_hl() {
-	int8_t load = monitor_rd_mem(REG_HL);
+	int8_t load = cpu_rd_mem(REG_HL);
 	DO_ADD(load, 0);
 	return 2;
 }
 
 static int op_add_a_n8() {
-	int8_t load = monitor_rd_mem(REG_PC);
+	int8_t load = cpu_rd_mem(REG_PC);
 	ADVANCE_PC(1);
 	DO_ADD(load, 0);
 	return 2;
 }
 
 static int op_add_sp_e8() {
-	int8_t load = monitor_rd_mem(REG_PC);
+	int8_t load = cpu_rd_mem(REG_PC);
 	UNSET_FLAGS_ALL;
 	SET_FLAG(BOOL_TO_HALF_CARRY_FLAG(IS_ADD_HALF_CARRY(REG_SP, load)));
 	REG_SP += load;
@@ -796,7 +796,7 @@ static int op_adc_a_l() {
 }
 
 static int op_adc_a_ind_hl() {
-	uint8_t word = monitor_rd_mem(REG_HL);
+	uint8_t word = cpu_rd_mem(REG_HL);
 	bool carry = cpu.state.registers.f & FLAG_CARRY;
 	uint16_t sum = REG_A + word + carry;
 	UNSET_FLAGS_ALL;
@@ -812,7 +812,7 @@ static int op_adc_a_ind_hl() {
 }
 
 static int op_adc_a_n8() {
-	uint8_t word = monitor_rd_mem(REG_PC);
+	uint8_t word = cpu_rd_mem(REG_PC);
 	bool carry = cpu.state.registers.f & FLAG_CARRY;
 	uint16_t sum = REG_A + word + carry;
 	UNSET_FLAGS_ALL;
@@ -869,13 +869,13 @@ static int op_sub_a_l() {
 }
 
 static int op_sub_a_ind_hl() {
-	int8_t load = monitor_rd_mem(REG_HL);
+	int8_t load = cpu_rd_mem(REG_HL);
 	DO_SUB(load, 0);
 	return 2;
 }
 
 static int op_sub_a_n8() {
-	int8_t load = monitor_rd_mem(REG_PC);
+	int8_t load = cpu_rd_mem(REG_PC);
 	ADVANCE_PC(1);
 	DO_SUB(load, 0);
 	return 2;
@@ -927,7 +927,7 @@ static int op_sbc_a_l() {
 }
 
 static int op_sbc_a_ind_hl() {
-	uint8_t word = monitor_rd_mem(REG_HL);
+	uint8_t word = cpu_rd_mem(REG_HL);
 	bool carry = cpu.state.registers.f & FLAG_CARRY;
 	uint16_t sum = REG_A - (word + carry);
 	UNSET_FLAGS_ALL;
@@ -944,7 +944,7 @@ static int op_sbc_a_ind_hl() {
 }
 
 static int op_sbc_a_n8() {
-	uint8_t word = monitor_rd_mem(REG_PC);
+	uint8_t word = cpu_rd_mem(REG_PC);
 	bool carry = cpu.state.registers.f & FLAG_CARRY;
 	uint16_t sum = REG_A - (word + carry);
 	UNSET_FLAGS_ALL;
@@ -1000,9 +1000,9 @@ static int op_rlc_l() {
 }
 
 static int op_rlc_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_RLC(load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -1060,9 +1060,9 @@ static int op_rl_l() {
 }
 
 static int op_rl_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_RL(load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -1114,9 +1114,9 @@ static int op_rrc_l() {
 }
 
 static int op_rrc_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_RRC(load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -1169,9 +1169,9 @@ static int op_rr_l() {
 }
 
 static int op_rr_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_RR(load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -1221,9 +1221,9 @@ static int op_sla_l() {
 }
 
 static int op_sla_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_SLA(load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -1270,9 +1270,9 @@ static int op_sra_l() {
 }
 
 static int op_sra_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_SRA(load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -1316,9 +1316,9 @@ static int op_srl_l() {
 }
 
 static int op_srl_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_SRL(load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -1362,9 +1362,9 @@ static int op_swp_l() {
 }
 
 static int op_swp_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_SWP(load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -1418,7 +1418,7 @@ static int op_bit0_l() {
 }
 
 static int op_bit0_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_BIT(BIT0, load);
 	return 3;
 }
@@ -1452,7 +1452,7 @@ static int op_bit1_l() {
 }
 
 static int op_bit1_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_BIT(BIT1, load);
 	return 3;
 }
@@ -1486,7 +1486,7 @@ static int op_bit2_l() {
 }
 
 static int op_bit2_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_BIT(BIT2, load);
 	return 3;
 }
@@ -1520,7 +1520,7 @@ static int op_bit3_l() {
 }
 
 static int op_bit3_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_BIT(BIT3, load);
 	return 3;
 }
@@ -1554,7 +1554,7 @@ static int op_bit4_l() {
 }
 
 static int op_bit4_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_BIT(BIT4, load);
 	return 3;
 }
@@ -1588,7 +1588,7 @@ static int op_bit5_l() {
 }
 
 static int op_bit5_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_BIT(BIT5, load);
 	return 3;
 }
@@ -1622,7 +1622,7 @@ static int op_bit6_l() {
 }
 
 static int op_bit6_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_BIT(BIT6, load);
 	return 3;
 }
@@ -1656,7 +1656,7 @@ static int op_bit7_l() {
 }
 
 static int op_bit7_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_BIT(BIT7, load);
 	return 3;
 }
@@ -1697,9 +1697,9 @@ static int op_rst0_l() {
 }
 
 static int op_rst0_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_RST(BIT0, load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -1732,9 +1732,9 @@ static int op_rst1_l() {
 }
 
 static int op_rst1_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_RST(BIT1, load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -1767,9 +1767,9 @@ static int op_rst2_l() {
 }
 
 static int op_rst2_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_RST(BIT2, load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -1802,9 +1802,9 @@ static int op_rst3_l() {
 }
 
 static int op_rst3_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_RST(BIT3, load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -1837,9 +1837,9 @@ static int op_rst4_l() {
 }
 
 static int op_rst4_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_RST(BIT4, load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -1872,9 +1872,9 @@ static int op_rst5_l() {
 }
 
 static int op_rst5_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_RST(BIT5, load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -1907,9 +1907,9 @@ static int op_rst6_l() {
 }
 
 static int op_rst6_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_RST(BIT6, load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -1942,9 +1942,9 @@ static int op_rst7_l() {
 }
 
 static int op_rst7_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_RST(BIT7, load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -1984,9 +1984,9 @@ static int op_set0_l() {
 }
 
 static int op_set0_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_SET(BIT0, load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -2019,9 +2019,9 @@ static int op_set1_l() {
 }
 
 static int op_set1_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_SET(BIT1, load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -2054,9 +2054,9 @@ static int op_set2_l() {
 }
 
 static int op_set2_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_SET(BIT2, load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -2089,9 +2089,9 @@ static int op_set3_l() {
 }
 
 static int op_set3_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_SET(BIT3, load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -2124,9 +2124,9 @@ static int op_set4_l() {
 }
 
 static int op_set4_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_SET(BIT4, load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -2159,9 +2159,9 @@ static int op_set5_l() {
 }
 
 static int op_set5_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_SET(BIT5, load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -2194,9 +2194,9 @@ static int op_set6_l() {
 }
 
 static int op_set6_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_SET(BIT6, load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -2229,9 +2229,9 @@ static int op_set7_l() {
 }
 
 static int op_set7_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_SET(BIT7, load);
-	monitor_wr_mem(REG_HL, load);
+	cpu_wr_mem(REG_HL, load);
 	return 4;
 }
 
@@ -2278,13 +2278,13 @@ static int op_and_a_a() {
 }
 
 static int op_and_a_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_AND(load);
 	return 2;
 }
 
 static int op_and_a_n8() {
-	uint8_t load = monitor_rd_mem(REG_PC);
+	uint8_t load = cpu_rd_mem(REG_PC);
 	ADVANCE_PC(1);
 	DO_AND(load);
 	return 2;
@@ -2324,13 +2324,13 @@ static int op_xor_a_l() {
 }
 
 static int op_xor_a_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_XOR(load);
 	return 2;
 }
 
 static int op_xor_a_n8() {
-	uint8_t load = monitor_rd_mem(REG_PC);
+	uint8_t load = cpu_rd_mem(REG_PC);
 	ADVANCE_PC(1);
 	DO_XOR(load);
 	return 2;
@@ -2374,13 +2374,13 @@ static int op_or_a_l() {
 }
 
 static int op_or_a_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_OR(load);
 	return 2;
 }
 
 static int op_or_a_n8() {
-	uint8_t load = monitor_rd_mem(REG_PC);
+	uint8_t load = cpu_rd_mem(REG_PC);
 	ADVANCE_PC(1);
 	DO_OR(load);
 	return 2;
@@ -2426,7 +2426,7 @@ static int op_cp_a_l() {
 }
 
 static int op_cp_a_ind_hl() {
-	uint8_t load = monitor_rd_mem(REG_HL);
+	uint8_t load = cpu_rd_mem(REG_HL);
 	DO_CP(load);
 	return 2;
 }
@@ -2436,7 +2436,7 @@ static int op_cp_a_a() {
 }
 
 static int op_cp_a_n8() {
-	uint8_t load = monitor_rd_mem(REG_PC);
+	uint8_t load = cpu_rd_mem(REG_PC);
 	ADVANCE_PC(1);
 	DO_CP(load);
 	return 2;
@@ -2488,13 +2488,13 @@ static int op_jmp_hl() {
 	return 3;
 
 static int op_jr_e8() {
-	int8_t off = monitor_rd_mem(REG_PC);
+	int8_t off = cpu_rd_mem(REG_PC);
 	DO_JR(off);
 }
 
 #define OP_JR_COND(cond) \
 	if (cond) { \
-		int8_t off = monitor_rd_mem(REG_PC); \
+		int8_t off = cpu_rd_mem(REG_PC); \
 		DO_JR(off); \
 	} \
 	ADVANCE_PC(1); \

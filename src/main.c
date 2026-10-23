@@ -23,10 +23,9 @@
 #include <signal.h>
 #include <stdio.h>
 
-#include "backends/backends.h"
+#include "backends.h"
 #include "monitor.h"
 #include "events.h"
-#include "render.h"
 #include "server.h"
 
 FILE *rom;
@@ -62,11 +61,6 @@ int main(int argc, char *argv[]) {
 			ret = -1;
 			goto out;
 		}
-	}
-
-	ret = render_init();
-	if (ret == -1) {
-		goto out;
 	}
 
 	ret = backends_init();
@@ -106,7 +100,6 @@ out:
 	monitor_fini();
 	server_fini();
 	backends_fini();
-	render_fini();
 	events_fini();
 	fclose(rom);
 

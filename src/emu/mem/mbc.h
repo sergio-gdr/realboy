@@ -28,8 +28,6 @@ typedef struct {
 	void (*wr_mem)(uint16_t addr, uint8_t value);
 } mbc_iface_t;
 
-mbc_iface_t *mbc_init();
-
 void mbc_wr(uint16_t addr, uint8_t value);
-int mem_init();
+int mbc_init();
 #endif

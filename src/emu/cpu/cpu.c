@@ -22,7 +22,9 @@
 
 #include "cpu.h"
 
-#include "monitor.h"
+#include "joy.h"
+#include "mbc.h"
+#include "ppu.h"
 
 // main cpu structure
 // holds registers and other state
@@ -30,6 +32,8 @@ cpu_t cpu;
 
 // defined in cpu_ops.c
 extern const uint8_t op_len[256];
+
+static uint8_t tmp_ioregs[0xffff];
 
 enum tac_bitmask {
 	TAC_BITMASK_CLOCK_SELECT = 0x3,
@@ -100,16 +104,16 @@ void cpu_request_intr(enum interrupt_mask im) {
 	cpu.state.if_reg |= im;
 }
 
-uint8_t cpu_rd(uint16_t addr) {
-	struct cpu_state *state = &cpu.state;
-
+static uint8_t rd_cpu(uint16_t addr) {
 	if (addr >= 0xc000 && addr <= 0xdfff) {
 		return cpu.wram[addr-0xc000];
 	}
-	if (addr >= 0xff80 && addr <=	0xfffe) {
+
+	if (addr >= 0xff80 && addr <= 0xfffe) {
 		return cpu.hram[addr-0xff80];
 	}
 
+	struct cpu_state *state = &cpu.state;
 	switch (addr) {
 		case 0xffff:
 			return state->ie_reg;
@@ -126,8 +130,107 @@ uint8_t cpu_rd(uint16_t addr) {
 		case 0xff50:
 			return state->disable_bootrom;
 		default:
-			fprintf(stderr, "error: cpu_rd()");
+			fprintf(stderr, "rd_cpu(): error reading 0x%x", addr);
 			return 0;
+	}
+}
+
+static void wr_cpu(uint16_t addr, uint8_t value) {
+	struct cpu_state *state = &cpu.state;
+
+	if (addr >= 0xc000 && addr <= 0xdfff) {
+		cpu.wram[addr-0xc000] = value;
+		return;
+	}
+	if (addr >= 0xff80 && addr <= 0xfffe) {
+		cpu.hram[addr-0xff80] = value;
+		return;
+	}
+
+	switch (addr) {
+		case 0xffff:
+			state->ie_reg = value;
+			return;
+		case 0xff0f:
+			state->if_reg = value & 0x1f;
+			return;
+		case 0xff04:
+			state->div_reg = 0;
+			return;
+		case 0xff05:
+			state->tima_reg = value;
+			return;
+		case 0xff06:
+			state->tma_reg = value;
+			return;
+		case 0xff07:
+			state->tac_reg = value & 7;
+			state->tima_enabled = value & TAC_BITMASK_TIMA_ENABLE;
+			switch (value & TAC_BITMASK_CLOCK_SELECT) {
+				case 0:
+					state->tac_divider = 256;
+					return;
+				case 1:
+					state->tac_divider = 4;
+					return;
+				case 2:
+					state->tac_divider = 16;
+					return;
+				case 3:
+					state->tac_divider = 64;
+					return;
+			}
+			return;
+		case 0xff50:
+			state->disable_bootrom = value;
+			return;
+		default:
+			break;
+	}
+
+	tmp_ioregs[addr] = value;
+}
+
+uint8_t cpu_rd_mem(uint16_t addr) {
+	if ((addr >= 0x8000 && addr <= 0x9fff) ||
+			(addr >= 0xfe00 && addr <= 0xfe9f) ||
+			(addr >= 0xff40 && addr <= 0xff4b)) {
+		return ppu_rd(addr);
+	}
+
+	if (addr <= 0xbfff) {
+		return mbc_rd(addr);
+	}
+
+	if (addr == 0xff00) {
+		return joy_rd(addr);
+	}
+
+	if (addr > 0xff00 && addr <= 0xff7f) {
+		return tmp_ioregs[addr];
+	}
+
+	return rd_cpu(addr);
+}
+
+void cpu_wr_mem(uint16_t addr, uint8_t value) {
+	if ((addr >= 0x8000 && addr <= 0x9fff) ||
+			(addr >= 0xfe00 && addr <= 0xfe9f) ||
+			(addr >= 0xff40 && addr <= 0xff4b)) {
+		ppu_wr(addr, value);
+	}
+	else if (addr == 0xff50) {
+		wr_cpu(addr, value);
+		mbc_wr(addr, value);
+	}
+	else if (addr <= 0xbfff) {
+		mbc_wr(addr, value);
+	}
+	else if (addr == 0xff00) {
+		joy_wr(addr, value);
+	}
+	else {
+		wr_cpu(addr, value);
 	}
 }
 
@@ -163,18 +266,18 @@ void cpu_peek(const struct peek *peek, struct peek_reply *reply) {
 		case CPU_PEEK_ADDR:
 			reply->size = sizeof(uint32_t);
 			reply->payload = malloc(reply->size); // caller frees
-			uint32_t addr = monitor_rd_mem(peek->req);
+			uint32_t addr = cpu_rd_mem(peek->req);
 			memcpy(reply->payload, &addr, reply->size);
 			break;
 		case CPU_PEEK_INSTR_AT_ADDR:
 			{
-				uint32_t opcode = monitor_rd_mem(peek->req);
+				uint32_t opcode = cpu_rd_mem(peek->req);
 				reply->size = opcode == OPCODE_PREFIX ? 2 : op_len[opcode];
 				reply->size *= sizeof(uint32_t);
 				reply->payload = malloc(reply->size); // caller frees
 				memcpy(reply->payload, &opcode, sizeof(uint32_t));
 				for (size_t i=1; i < (reply->size)/sizeof(uint32_t); i++) {
-					uint32_t req = monitor_rd_mem(peek->req+i);
+					uint32_t req = cpu_rd_mem(peek->req+i);
 					memcpy((uint32_t*)reply->payload+i, &req, sizeof(uint32_t));
 				}
 			}
@@ -190,71 +293,16 @@ void cpu_peek(const struct peek *peek, struct peek_reply *reply) {
 	}
 }
 
-void cpu_wr(uint16_t addr, uint8_t value) {
-	struct cpu_state *state = &cpu.state;
-
-	if (addr >= 0xc000 && addr <= 0xdfff) {
-		cpu.wram[addr-0xc000] = value;
-		return;
-	}
-	if (addr >= 0xff80 && addr <= 0xfffe) {
-		cpu.hram[addr-0xff80] = value;
-		return;
-	}
-
-	switch (addr) {
-		case 0xffff:
-			state->ie_reg = value;
-			break;
-		case 0xff0f:
-			state->if_reg = value & 0x1f;
-			break;
-		case 0xff04:
-			state->div_reg = 0;
-			break;
-		case 0xff05:
-			state->tima_reg = value;
-			break;
-		case 0xff06:
-			state->tma_reg = value;
-			break;
-		case 0xff07:
-			state->tac_reg = value & 7;
-			state->tima_enabled = value & TAC_BITMASK_TIMA_ENABLE;
-			switch (value & TAC_BITMASK_CLOCK_SELECT) {
-				case 0:
-					state->tac_divider = 256;
-					break;
-				case 1:
-					state->tac_divider = 4;
-					break;
-				case 2:
-					state->tac_divider = 16;
-					break;
-				case 3:
-					state->tac_divider = 64;
-					break;
-			}
-			break;
-		case 0xff50:
-			state->disable_bootrom = value;
-			break;
-		default:
-			fprintf(stderr, "error: cpu_wr() addr %d value %d", addr, value);
-	}
-}
-
 int cpu_exec_next() {
 	int cycles = 0;
 	bool op_is_prefix = false;
 
 	// fetch opcode
 	if (!cpu.state.is_halted) {
-		uint8_t op = monitor_rd_mem(REG_PC);
-		//printf("EXECUTING %x\n", REG_PC);
+		uint8_t op = cpu_rd_mem(REG_PC);
 		REG_PC++;
 		if (op == OPCODE_PREFIX) {
-			op = monitor_rd_mem(REG_PC);
+			op = cpu_rd_mem(REG_PC);
 			REG_PC++;
 			op_is_prefix = true;
 		}
@@ -295,4 +343,8 @@ int cpu_exec_next() {
 
 void cpu_halt() {
 	cpu.state.is_halted = true;
+}
+
+void cpu_init() {
+	mbc_init();
 }

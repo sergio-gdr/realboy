@@ -16,48 +16,62 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef RB_BACKENDS_H
-#define RB_BACKENDS_H
+#ifndef BACKENDS_H
+#define BACKENDS_H
 
 #include "config.h"
 
-#ifdef HAVE_WAYLAND_BACKEND
-#include "wayland/backend.h"
-#endif
-#ifdef HAVE_PIPEWIRE_BACKEND
-#include "pipewire/backend.h"
-#endif
-#ifdef HAVE_EVDEV_BACKEND
-#include "evdev/backend.h"
-#endif
+#include <stdint.h>
 
 enum backend_type {
-	BACKEND_DISPLAY,
 	BACKEND_AUDIO,
-	BACKEND_INPUT
+	BACKEND_DISPLAY,
+	BACKEND_INPUT,
+	BACKEND_RENDER
 };
 
-struct backend {
+typedef struct {
 	enum backend_type type;
 	int (*init)();
 	void (*fini)();
 	void (*dispatch)(int fd);
 	int (*get_fd)();
-};
+} backend_t;
 
-struct backend_display_ext {
-	struct backend backend;
+typedef struct {
+	backend_t backend;
 	bool (*is_focus)();
-};
+} backend_display_ext_t;
 
-struct backend_audio_ext {
-	struct backend backend;
-};
+typedef struct {
+	backend_t backend;
+	void *(*get_buttons)();
+} backend_input_ext_t;
 
-int backends_init();
-void backends_fini();
-int backends_get_fds(int **fds);
-void backends_dispatch(int fd);
-struct backend *backends_get_backend_by_type(enum backend_type type);
+typedef struct {
+	backend_t backend;
+} backend_audio_ext_t;
+
+typedef struct {
+	backend_t backend;
+	void (*draw_pixel)(int x, int y, uint32_t pixel);
+	void (*composite_frame)();
+	void *(*get_fb_info)();
+} backend_render_ext_t;
+
+#ifdef HAVE_WAYLAND_BACKEND
+extern backend_display_ext_t wayland_backend_iface;
+#endif
+#ifdef HAVE_PIPEWIRE_BACKEND
+extern backend_audio_ext_t pipewire_backend_iface;
+#endif
+#ifdef HAVE_PIPEWIRE_BACKEND
+extern backend_render_ext_t pixman_backend_iface;
+#endif
+#ifdef HAVE_EVDEV_BACKEND
+extern backend_input_ext_t evdev_backend_iface;
+#endif
+
+backend_t *backends_get_backend_by_type(enum backend_type type);
 
 #endif

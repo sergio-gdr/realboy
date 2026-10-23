@@ -19,7 +19,11 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "mbc.h"
+
 #include "mbc1.h"
+
+static mbc_iface_t *mbc_impl;
 
 const char *cart_type[] = {
 	"ROM ONLY",
@@ -61,8 +65,11 @@ const char *cart_type[] = {
 };
 
 extern uint8_t mbc1_rom[0x8000+(0x4000*0x1f)]; // XXX
-mbc_iface_t *mbc_init() {
-	mbc_iface_t *impl = mbc1_init();
+int mbc_init() {
+	extern FILE *rom;
+	fread(mbc1_rom, 1, 0x8000, rom);
+
+	mbc_impl = mbc1_init();
 	printf("Title: %s\n", &mbc1_rom[0x134]);
 	printf("CGB Support: %s\n", mbc1_rom[0x143] & 0x80 ? "Yes" : "No");
 	printf("SGB Support: %s\n", mbc1_rom[0x146] == 3 ? "Yes" : "No");
@@ -120,5 +127,13 @@ mbc_iface_t *mbc_init() {
 			printf("Unknown\n");
 	}
 
-	return impl;
+	return 0;
+}
+
+void mbc_wr(uint16_t addr, uint8_t value) {
+	mbc_impl->wr_mem(addr, value);
+}
+
+uint8_t mbc_rd(uint16_t addr) {
+	return mbc_impl->rd_mem(addr);
 }

@@ -52,8 +52,8 @@ enum interrupt_mask {
 void cpu_init();
 
 // access cpu's internal state.
-void cpu_wr(uint16_t addr, uint8_t value);
-uint8_t cpu_rd(uint16_t addr);
+void cpu_wr_mem(uint16_t addr, uint8_t value);
+uint8_t cpu_rd_mem(uint16_t addr);
 
 void cpu_peek(const struct peek *peek, struct peek_reply *reply);
 
