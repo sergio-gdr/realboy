@@ -20,7 +20,7 @@
 #include <unistd.h>
 #include <sys/epoll.h>
 
-#include "backends/backends.h"
+#include "backends.h"
 #include "server.h"
 
 static bool events_initialized;
@@ -66,9 +66,7 @@ int events_init() {
 				.events = EPOLLIN,
 				.data.fd = fds[i]
 			}) == -1) {
-			close(epoll_fd);
-			perror("epoll_ctl()");
-			return -1;
+			perror("events_init(): epoll_ctl");
 		}
 	}
 
@@ -80,7 +78,7 @@ int events_init() {
 				.data.fd = server_fd
 			}) == -1) {
 			close(epoll_fd);
-			perror("epoll_ctl()");
+			perror("events_init(): epoll_ctl");
 			return -1;
 		}
 	}

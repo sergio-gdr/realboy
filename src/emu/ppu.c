@@ -24,11 +24,9 @@
 
 #include "ppu.h"
 
+#include "backends.h"
 #include "cpu.h"
 #include "monitor.h"
-#include "render.h"
-
-#include "config.h"
 
 enum ppu_mode {
 	PPU_HBLANK=0,
@@ -313,7 +311,7 @@ static void ppu_render_line() {
 				if (!obj_pixel || (win_indx != 0))
 					final_pixel = win_pixel;
 			}
-			render_draw_pixel(i+j, regs->ly, final_pixel);
+			backend_draw_pixel(i+j, regs->ly, final_pixel);
 		}
 	}
 }
@@ -325,7 +323,7 @@ static void change_phase() {
 			hblank_end_cycle();
 			break;
 		case PPU_VBLANK:
-			render_draw_framebuffer();
+			backend_composite_frame();
 			vblank_end_cycle();
 			break;
 		case PPU_OAM:
@@ -385,7 +383,7 @@ static void wr_reg(uint16_t addr, uint8_t value) {
 			{
 			uint16_t addr = value*0x100;
 			for (int i = 0; i < 0xa0; i++)
-				monitor_wr_mem(0xfe00+i, monitor_rd_mem(addr+i));
+				cpu_wr_mem(0xfe00+i, cpu_rd_mem(addr+i));
 			break;
 			}
 		case 0xff47:

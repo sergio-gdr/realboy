@@ -16,12 +16,22 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef WAYLAND_H
-#define WAYLAND_H
+#ifndef INPUT_BACKEND_H
+#define INPUT_BACKEND_H
 
-extern struct backend_display_ext wayland_backend_iface;
+#include "config.h"
 
-struct wl_display *wayland_init();
-void wayland_dispatch(int fd);
+#include "backends/backends.h"
+
+#include "emu/joy.h"
+
+typedef struct {
+	backend_t backend;
+	void *(*get_buttons)();
+} backend_input_ext_t;
+
+#ifdef HAVE_EVDEV_BACKEND
+extern backend_input_ext_t evdev_backend_iface;
+#endif
 
 #endif

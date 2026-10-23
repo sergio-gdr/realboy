@@ -24,9 +24,10 @@
 #include "wayland-client.h"
 #include "xdg-shell-client-protocol.h"
 
-#include "backends/backends.h"
+#include "backends/display/display.h"
 
-#include "render.h"
+#include "backends.h"
+#include "backends/render/render.h"
 
 typedef struct {
 	struct framebuffer_info framebuffer;
@@ -76,7 +77,7 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 	.wm_capabilities = handle_xdg_wm_capabilities
 };
 
-void backend_wayland_update_frame();
+static void update_frame();
 static void
 handle_xdg_surface_configure(void *data, struct xdg_surface *surface, uint32_t serial)
 {
@@ -84,7 +85,7 @@ handle_xdg_surface_configure(void *data, struct xdg_surface *surface, uint32_t s
 	xdg_surface_ack_configure(surface, serial);
 	if (!configured) {
 		configured = true;
-		backend_wayland_update_frame();
+		update_frame();
 	}
 }
 
@@ -177,11 +178,7 @@ static const struct wl_registry_listener registry_listener = {
 	registry_handle_global_remove
 };
 
-bool wayland_is_focus() {
-	return wayland.is_surface_focused;
-}
-
-void set_framebuffer(const struct framebuffer_info *fb) {
+static void set_framebuffer(const struct framebuffer_info *fb) {
 	wayland_t *w = &wayland;
 
 	w->framebuffer = *fb;
@@ -189,7 +186,7 @@ void set_framebuffer(const struct framebuffer_info *fb) {
 }
 
 static const struct wl_callback_listener frame_listener;
-void backend_wayland_update_frame() {
+static void update_frame() {
 	wayland_t *w = &wayland;
 	struct framebuffer_info *fb = &w->framebuffer;
 
@@ -208,19 +205,19 @@ void backend_wayland_update_frame() {
 static void done(void *data, struct wl_callback *wl_callback,
 	uint32_t callback_data) {
 
-	backend_wayland_update_frame();
+	update_frame();
 }
 
 static const struct wl_callback_listener frame_listener = {
         .done = done
 };
 
-static int init() {
+static backend_t *init() {
 	wayland_t *w = &wayland;
 
 	w->display = wl_display_connect(NULL);
 	if (!w->display) {
-		return -1;
+		return NULL;
 	}
 	w->registry = wl_display_get_registry(w->display);
 	wl_registry_add_listener(w->registry,
@@ -243,11 +240,11 @@ static int init() {
 	wl_surface_commit(w->surface);
 	wl_display_flush(w->display);
 
-	struct framebuffer_info fb = render_get_framebuffer_dimensions();
-	fb.fd = render_get_framebuffer_fd();
-	set_framebuffer(&fb);
+	struct framebuffer_info *fb = backend_get_fb_info();
+	fb->fd = backend_get_fb_fd();
+	set_framebuffer(fb);
 
-	return 0;
+	return (backend_t*)&wayland_backend_iface;
 }
 
 static void dispatch(int fd) {
@@ -266,7 +263,7 @@ static bool is_focus() {
        return wayland.is_surface_focused;
 }
 
-struct backend_display_ext wayland_backend_iface =
+backend_display_ext_t wayland_backend_iface =
 {
 	.backend.type = BACKEND_DISPLAY,
 	.backend.init = init,

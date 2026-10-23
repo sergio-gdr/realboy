@@ -108,10 +108,5 @@ mbc1_ram_en(int val)
 }
 
 mbc_iface_t *mbc1_init() {
-	extern FILE *rom;
-	fread(mbc1_rom, 1, 0x8000, rom);
-	FILE *boot = fopen("/home/sergio/Downloads/dmg_boot.bin", "r");
-	fseek(boot, 0, SEEK_SET);
-	fread(mbc1_rom, 1, 0x256, boot);
 	return &mbc1_impl;
 }

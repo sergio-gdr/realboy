@@ -27,7 +27,7 @@
 
 #include <pixman.h>
 
-#include "render.h"
+#include "backends/render/render.h"
 
 typedef struct {
 	struct framebuffer_info fbinfo;
@@ -43,26 +43,18 @@ static render_t render;
 #define DMG_PIXELS_WIDTH 160
 #define DMG_PIXELS_HEIGHT 144
 
-void render_draw_pixel(int x, int y, uint32_t pixel) {
+static void draw_pixel(int x, int y, uint32_t pixel) {
 	assert(x <= DMG_PIXELS_WIDTH && y <= DMG_PIXELS_HEIGHT);
 	*(render.raw_buf+(y*DMG_PIXELS_WIDTH)+(x)) = pixel;
 }
 
-void render_draw_framebuffer() {
+static void composite_frame() {
 	pixman_image_composite32(PIXMAN_OP_SRC, render.pix_src, nullptr,
 		render.pix_dst, 0, 0, 0, 0, 0, 0, render.fbinfo.width,
 		render.fbinfo.height);
 }
 
-struct framebuffer_info render_get_framebuffer_dimensions() {
-	return render.fbinfo;
-}
-
-int render_get_framebuffer_fd() {
-	return render.framebuffer_fd;
-}
-
-void render_fini() {
+static void fini() {
 	if (render.pix_src)
 		pixman_image_set_transform(render.pix_src, NULL);
 	if (render.final_buf)
@@ -74,7 +66,7 @@ void render_fini() {
 	free(render.raw_buf);
 }
 
-int render_init() {
+static backend_t *init() {
 	render.fbinfo.width = DMG_PIXELS_WIDTH*4;
 	render.fbinfo.height = DMG_PIXELS_HEIGHT*4;
 	render.fbinfo.stride = render.fbinfo.width * sizeof(uint32_t);
@@ -83,7 +75,7 @@ int render_init() {
 	render.framebuffer_fd = memfd_create("realboy-bg", MFD_CLOEXEC);
 	if (render.framebuffer_fd == -1) {
 		perror("memfd_create()");
-		return -1;
+		return NULL;
 	}
 
 	// this makes sure that there is enough disk space to backup the anonymous file
@@ -126,8 +118,27 @@ int render_init() {
 		goto err;
 	}
 
-	return 0;
+	return (backend_t*)&pixman_backend_iface;
 err:
-	render_fini();
-	return -1;
+	fini();
+	return NULL;
 }
+
+static struct framebuffer_info *get_fb_info() {
+	return &render.fbinfo;
+}
+
+static int get_fd() {
+	return render.framebuffer_fd;
+}
+
+backend_render_ext_t pixman_backend_iface =
+{
+	.backend.type = BACKEND_RENDER,
+	.backend.init = init,
+	.backend.fini = fini,
+	.backend.get_fd = get_fd,
+	.draw_pixel = draw_pixel,
+	.composite_frame = composite_frame,
+	.get_fb_info = get_fb_info
+};

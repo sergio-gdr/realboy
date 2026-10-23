@@ -16,9 +16,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef RB_BACKEND_PIPEWIRE_H
-#define RB_BACKEND_PIPEWIRE_H
-
-extern struct backend_audio_ext pipewire_backend_iface;
+#ifndef WAYLAND_BACKEND_H
+#define WAYLAND_BACKEND_H
 
 #endif

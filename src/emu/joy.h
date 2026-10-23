@@ -16,29 +16,18 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include "backends/backends.h"
+#ifndef JOY_H
+#define JOY_H
 
-static void backend_dispatch(int fd) {
-}
-
-static int backend_get_fd() {
-	return 0;
-}
-
-static void backend_fini() {
-}
-
-static int backend_init() {
-	//pipewire_init();
-
-	return 0;
-}
-
-struct backend_audio_ext pipewire_backend_iface =
-{
-	.backend.type = BACKEND_DISPLAY,
-	.backend.init = backend_init,
-	.backend.fini = backend_fini,
-	.backend.get_fd = backend_get_fd,
-	.backend.dispatch = backend_dispatch,
+struct buttons {
+	bool start_released;
+	bool select_released;
+	bool a_released;
+	bool b_released;
+	bool up_released;
+	bool down_released;
+	bool left_released;
+	bool right_released;
 };
+
+#endif

@@ -18,7 +18,7 @@
 #ifndef MBC1_H
 #define MBC1_H
 
-#include "../include/mbc.h"
+#include "mbc.h"
 
 mbc_iface_t *mbc1_init();
 

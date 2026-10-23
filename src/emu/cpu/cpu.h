@@ -43,11 +43,11 @@
 #define REG_L cpu.state.registers.l
 
 #define RD_WORD(addr) \
-	(monitor_rd_mem(addr) | monitor_rd_mem(addr+1)<<8)
+	(cpu_rd_mem(addr) | cpu_rd_mem(addr+1)<<8)
 
 #define WR_WORD(addr, value) \
-	monitor_wr_mem(addr, value&0xff); \
-	monitor_wr_mem(addr+1, (value&0xff00)>>8);
+	cpu_wr_mem(addr, value&0xff); \
+	cpu_wr_mem(addr+1, (value&0xff00)>>8);
 
 // for convenience, we want to access registers as either 8-bit values (eg, register B),
 // 16-bit pairs (eg, register B and C as BC).

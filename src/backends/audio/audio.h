@@ -16,13 +16,19 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef EVDEV_H
-#define EVDEV_H
+#ifndef AUDIO_BACKEND_H
+#define AUDIO_BACKEND_H
 
-extern struct backend evdev_backend_iface;
+#include "config.h"
 
-int evdev_init();
-void evdev_fini();
-void evdev_dispatch(int fd);
+#include "backends/backends.h"
+
+typedef struct {
+	backend_t backend;
+} backend_audio_ext_t;
+
+#ifdef HAVE_PIPEWIRE_BACKEND
+extern backend_audio_ext_t pipewire_backend_iface;
+#endif
 
 #endif

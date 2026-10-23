@@ -48,14 +48,6 @@ void monitor_server_request();
 
 void monitor_throttle_fps();
 
-// read/write to an arbitrary address.
-// the monitor maps the address to the correct memory mechanism:
-// egs:
-//  monitor_wr_mem(0xc000, 0) writes 0 to the cpu's working ram
-//  monitor_rd_mem(0xff40) reads from the ppu's lcdc register
-uint8_t monitor_rd_mem(uint16_t addr);
-void monitor_wr_mem(uint16_t addr, uint8_t value);
-
 // interfaces with the system's input mechanism.
 // eg, the wayland driver calls this to inform about the linux input EV_KEY.
 // only linux right now.

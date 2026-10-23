@@ -1,13 +1,14 @@
 sources = files(
 	'backends/backends.c',
-	'backends/wayland/backend.c',
-	'backends/pipewire/backend.c',
-	'backends/evdev/backend.c',
+	'backends/input/evdev/evdev.c',
+	'backends/audio/pipewire/pipewire.c',
+	'backends/render/pixman/pixman.c',
+	'backends/display/wayland/wayland.c',
 	'events.c',
-	'render.c',
 	'server.c',
 	'emu/cpu/cpu.c',
 	'emu/cpu/cpu_ops.c',
+	'emu/joy.c',
 	'emu/mem/mbc.c',
 	'emu/mem/mbc1.c',
 	'emu/ppu.c',
@@ -51,6 +52,10 @@ if get_option('pipewire-backend') == true
 endif
 if get_option('evdev-backend') == true
     internal_config.set('HAVE_EVDEV_BACKEND', '1')
+	num_backends += 1
+endif
+if pixman.found() and get_option('pixman-backend') == true
+    internal_config.set('HAVE_PIXMAN_BACKEND', '1')
 	num_backends += 1
 endif
 internal_config.set('NUM_BACKENDS', num_backends)
