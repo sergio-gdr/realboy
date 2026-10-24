@@ -185,12 +185,21 @@ static void set_framebuffer(const struct framebuffer_info *fb) {
 	w->shm_pool = wl_shm_create_pool(w->shm, w->framebuffer.fd, w->framebuffer.size);
 }
 
+static void buffer_handle_release(void *data, struct wl_buffer *buffer) {
+	wl_buffer_destroy(buffer);
+}
+
+static const struct wl_buffer_listener buffer_listener = {
+	buffer_handle_release
+};
+
 static const struct wl_callback_listener frame_listener;
 static void update_frame() {
 	wayland_t *w = &wayland;
 	struct framebuffer_info *fb = &w->framebuffer;
 
 	struct wl_buffer *wl_buf = wl_shm_pool_create_buffer(w->shm_pool, 0, fb->width, fb->height, fb->stride, WL_SHM_FORMAT_XRGB8888);
+	wl_buffer_add_listener(wl_buf, &buffer_listener, NULL);
 	wl_surface_attach(w->surface, wl_buf, 0, 0);
 	wl_surface_damage(w->surface, 0, 0, fb->width, fb->height);
 	if (w->frame_callback)
