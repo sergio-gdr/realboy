@@ -43,3 +43,15 @@ uint8_t joy_rd(uint16_t addr) {
 void joy_wr(uint16_t addr, uint8_t value) {
 	joypad_input_reg = value&0x30;
 }
+
+void joy_init() {
+	buttons = backend_get_buttons();
+	buttons->a_released = 1;
+	buttons->b_released = 1;
+	buttons->start_released = 1;
+	buttons->select_released = 1;
+	buttons->up_released = 1;
+	buttons->down_released = 1;
+	buttons->left_released = 1;
+	buttons->right_released = 1;
+}

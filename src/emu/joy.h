@@ -30,4 +30,6 @@ struct buttons {
 	bool right_released;
 };
 
+void joy_init();
+
 #endif
