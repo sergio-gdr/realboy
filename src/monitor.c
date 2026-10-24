@@ -28,6 +28,7 @@
 #include "monitor.h"
 
 #include "emu/cpu/cpu.h"
+#include "emu/ppu.h"
 #include "emu/mem/mbc.h"
 #include "emu/joy.h"
 #include "events.h"
@@ -248,6 +249,7 @@ void monitor_fini() {
 
 int monitor_init() {
 	cpu_init();
+	ppu_init();
 	mbc_init();
 	joy_init();
 

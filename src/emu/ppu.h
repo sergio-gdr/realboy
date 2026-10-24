@@ -27,6 +27,8 @@ enum ppu_reg {
 	PPU_REG_LY = 0xff44
 };
 
+void ppu_init();
+
 // get the total number of frames since the start
 // of the emulation.
 uint64_t ppu_get_frame_count();

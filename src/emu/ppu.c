@@ -538,3 +538,7 @@ uint16_t peek_get_ppu_reg(enum ppu_reg ppu_reg) {
 			return -1;
 	}
 }
+
+void ppu_init() {
+	ppu.regs.lcdc = 0x91;
+}
