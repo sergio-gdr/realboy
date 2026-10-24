@@ -25,7 +25,7 @@
 #include "ppu.h"
 
 #include "backends.h"
-#include "cpu.h"
+#include "cpu/cpu.h"
 #include "monitor.h"
 
 enum ppu_mode {
@@ -529,26 +529,12 @@ void ppu_refresh(uint8_t ticks) {
 	}
 }
 
-static uint16_t peek_get_ppu_reg(uintptr_t ppu_reg) {
-	enum ppu_reg reg = ppu_reg;
-	switch (reg) {
+uint16_t peek_get_ppu_reg(enum ppu_reg ppu_reg) {
+	switch (ppu_reg) {
 		case PPU_REG_LY:
 			return ppu_rd(0xff44);
 		default:
 			fprintf(stderr, "error: peek_get_ppu_reg()");
 			return -1;
-	}
-}
-
-void ppu_peek(const struct peek *peek, struct peek_reply *reply) {
-	switch (peek->subtype) {
-		case PPU_PEEK_REG:
-			reply->size = sizeof(uint32_t);
-			reply->payload = malloc(reply->size); // caller frees
-			uint32_t ppu_reg = peek_get_ppu_reg(peek->req);
-			memcpy(reply->payload, &ppu_reg, sizeof(uint32_t));
-			break;
-		default:
-			fprintf(stderr, "error: ppu_peek()");
 	}
 }

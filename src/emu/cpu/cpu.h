@@ -19,10 +19,8 @@
 #ifndef CPU_H
 #define CPU_H
 
-#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
-
-#include "../include/cpu.h"
 
 #define OPCODE_HALT 0x76
 #define OPCODE_PREFIX 0xcb
@@ -48,6 +46,23 @@
 #define WR_WORD(addr, value) \
 	cpu_wr_mem(addr, value&0xff); \
 	cpu_wr_mem(addr+1, (value&0xff00)>>8);
+
+enum cpu_reg {
+	CPU_REG_AF,
+	CPU_REG_BC,
+	CPU_REG_DE,
+	CPU_REG_HL,
+	CPU_REG_SP,
+	CPU_REG_PC
+};
+
+// for requesting interrupts when calling cpu_request_intr().
+enum interrupt_mask {
+	REQUEST_INTR_VBLANK = 0x1,
+	REQUEST_INTR_LCD = 0x2,
+	REQUEST_INTR_TIMER = 0x4,
+	REQUEST_INTR_JOYPAD = 0x8
+};
 
 // for convenience, we want to access registers as either 8-bit values (eg, register B),
 // 16-bit pairs (eg, register B and C as BC).
@@ -121,9 +136,24 @@ typedef struct {
 	uint8_t hram[0x7f]; // 0xff80-0xfffe
 } cpu_t;
 
+// access cpu's internal state.
+void cpu_wr_mem(uint16_t addr, uint8_t value);
+uint8_t cpu_rd_mem(uint16_t addr);
+
 void cpu_enable_intr();
 void cpu_disable_intr();
 void cpu_halt();
 int ops_table_dispatch(uint8_t opcode, bool prefix);
+
+// initialiaze the cpu module.
+void cpu_init();
+
+// execute the next instruction.
+int cpu_exec_next();
+
+// request a cpu interrupt.
+void cpu_request_intr(enum interrupt_mask);
+
+uint16_t peek_get_cpu_reg(enum cpu_reg cpu_reg);
 
 #endif

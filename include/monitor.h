@@ -23,23 +23,6 @@
 
 #include <linux/input.h>
 
-// the 'peek' interface.
-// it is implemented by the modules (eg, cpu_peek(), ppu_peek()) to read their
-// state in the context of an IPC request.
-enum peek_type {
-	PEEK_CPU,
-	PEEK_PPU,
-};
-struct peek {
-	enum peek_type type;
-	uint32_t subtype;
-	uint32_t req;
-};
-struct peek_reply {
-	size_t size;
-	void *payload;
-};
-
 // main loop for the execution environment.
 // call this function to run the emulator.
 int monitor_run();

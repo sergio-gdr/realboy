@@ -234,9 +234,8 @@ void cpu_wr_mem(uint16_t addr, uint8_t value) {
 	}
 }
 
-static uint16_t peek_get_cpu_reg(uintptr_t cpu_reg) {
-	enum cpu_reg reg = cpu_reg;
-	switch (reg) {
+uint16_t peek_get_cpu_reg(enum cpu_reg cpu_reg) {
+	switch (cpu_reg) {
 		case CPU_REG_AF:
 			return REG_AF;
 		case CPU_REG_BC:
@@ -252,44 +251,6 @@ static uint16_t peek_get_cpu_reg(uintptr_t cpu_reg) {
 		default:
 			fprintf(stderr, "error: peek_get_cpu_reg()");
 			return -1;
-	}
-}
-
-void cpu_peek(const struct peek *peek, struct peek_reply *reply) {
-	switch (peek->subtype) {
-		case CPU_PEEK_REG:
-			reply->size = sizeof(uint32_t);
-			reply->payload = malloc(reply->size); // caller frees
-			uint32_t cpu_reg = peek_get_cpu_reg(peek->req);
-			memcpy(reply->payload, &cpu_reg, reply->size);
-			break;
-		case CPU_PEEK_ADDR:
-			reply->size = sizeof(uint32_t);
-			reply->payload = malloc(reply->size); // caller frees
-			uint32_t addr = cpu_rd_mem(peek->req);
-			memcpy(reply->payload, &addr, reply->size);
-			break;
-		case CPU_PEEK_INSTR_AT_ADDR:
-			{
-				uint32_t opcode = cpu_rd_mem(peek->req);
-				reply->size = opcode == OPCODE_PREFIX ? 2 : op_len[opcode];
-				reply->size *= sizeof(uint32_t);
-				reply->payload = malloc(reply->size); // caller frees
-				memcpy(reply->payload, &opcode, sizeof(uint32_t));
-				for (size_t i=1; i < (reply->size)/sizeof(uint32_t); i++) {
-					uint32_t req = cpu_rd_mem(peek->req+i);
-					memcpy((uint32_t*)reply->payload+i, &req, sizeof(uint32_t));
-				}
-			}
-			break;
-		case CPU_PEEK_OP_LEN:
-			reply->size = sizeof(uint32_t);
-			reply->payload = malloc(reply->size); // caller frees
-			uint32_t len = op_len[peek->req];
-			memcpy(reply->payload, &len, sizeof(uint32_t));
-			break;
-		default:
-			fprintf(stderr, "error: cpu_peek()");
 	}
 }
 

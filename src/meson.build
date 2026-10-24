@@ -11,6 +11,7 @@ sources = files(
 	'emu/joy.c',
 	'emu/mem/mbc.c',
 	'emu/mem/mbc1.c',
+	'emu/peek.c',
 	'emu/ppu.c',
 	'main.c',
 	'monitor.c',

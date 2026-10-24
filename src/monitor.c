@@ -27,9 +27,10 @@
 
 #include "monitor.h"
 
-#include "cpu.h"
+#include "emu/cpu/cpu.h"
 #include "events.h"
 #include "list.h"
+#include "emu/peek.h"
 #include "ppu.h"
 #include "server.h"
 

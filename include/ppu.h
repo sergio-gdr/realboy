@@ -21,17 +21,10 @@
 
 #include <stdint.h>
 
-#include "monitor.h"
-
 enum ppu_reg {
 	PPU_REG_LCDC = 0xff40,
 	PPU_REG_STAT = 0xff41,
 	PPU_REG_LY = 0xff44
-};
-
-// types of 'peek' provided by the ppu module.
-enum ppu_peek_type {
-	PPU_PEEK_REG
 };
 
 // get the total number of frames since the start
@@ -44,6 +37,6 @@ void ppu_refresh(uint8_t ticks);
 uint8_t ppu_rd(uint16_t addr);
 void ppu_wr(uint16_t addr, uint8_t value);
 
-void ppu_peek(const struct peek *peek, struct peek_reply *reply);
+uint16_t peek_get_ppu_reg(enum ppu_reg);
 
 #endif

@@ -16,20 +16,15 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef RB_CPU_H
-#define RB_CPU_H
+#ifndef PEEK_H
+#define PEEK_H
 
+#include <stddef.h>
 #include <stdint.h>
 
-#include "monitor.h"
-
-enum cpu_reg {
-	CPU_REG_AF,
-	CPU_REG_BC,
-	CPU_REG_DE,
-	CPU_REG_HL,
-	CPU_REG_SP,
-	CPU_REG_PC
+enum peek_type {
+	PEEK_CPU,
+	PEEK_PPU,
 };
 
 // types of 'peek' provided by the cpu module.
@@ -40,27 +35,22 @@ enum cpu_peek_type {
 	CPU_PEEK_OP_LEN
 };
 
-// for requesting interrupts when calling cpu_request_intr().
-enum interrupt_mask {
-	REQUEST_INTR_VBLANK = 0x1,
-	REQUEST_INTR_LCD = 0x2,
-	REQUEST_INTR_TIMER = 0x4,
-	REQUEST_INTR_JOYPAD = 0x8
+// types of 'peek' provided by the ppu module.
+enum ppu_peek_type {
+	PPU_PEEK_REG
 };
 
-// initialiaze the cpu module.
-void cpu_init();
-
-// access cpu's internal state.
-void cpu_wr_mem(uint16_t addr, uint8_t value);
-uint8_t cpu_rd_mem(uint16_t addr);
+struct peek {
+	enum peek_type type;
+	uint32_t subtype;
+	uint32_t req;
+};
+struct peek_reply {
+	size_t size;
+	void *payload;
+};
 
 void cpu_peek(const struct peek *peek, struct peek_reply *reply);
-
-// execute the next instruction.
-int cpu_exec_next();
-
-// request a cpu interrupt.
-void cpu_request_intr(enum interrupt_mask);
+void ppu_peek(const struct peek *peek, struct peek_reply *reply);
 
 #endif
