@@ -16,8 +16,6 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#define _POSIX_C_SOURCE 200809L
-
 #include "config.h"
 
 #include "server.h"
@@ -31,12 +29,12 @@
 #endif
 
 static bool server_initialized;
-
 static bool client_connected;
+
 static server_dispatch_impl_t dispatch_tbl;
 
 #ifdef HAVE_LIBEMU
-static void dispatch_monitor(struct msg *req) {
+static void dispatch_monitor(const struct msg *req) {
 	switch (req->hdr.subtype.monitor) {
 		case MONITOR_STOP:
 			dispatch_tbl.dispatch_monitor_stop();
@@ -47,7 +45,7 @@ static void dispatch_monitor(struct msg *req) {
 	}
 }
 
-static void dispatch_control_flow(struct msg *req) {
+static void dispatch_control_flow(const struct msg *req) {
 	switch (req->hdr.subtype.control_flow) {
 		case CONTROL_FLOW_UNTIL:
 			uint32_t until_addr = *(uint32_t*)req->payload;
