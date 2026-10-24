@@ -307,4 +307,5 @@ void cpu_halt() {
 }
 
 void cpu_init() {
+	REG_PC = 0x100;
 }
