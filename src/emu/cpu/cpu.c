@@ -307,5 +307,4 @@ void cpu_halt() {
 }
 
 void cpu_init() {
-	mbc_init();
 }

@@ -28,6 +28,7 @@
 #include "monitor.h"
 
 #include "emu/cpu/cpu.h"
+#include "emu/mem/mbc.h"
 #include "events.h"
 #include "list.h"
 #include "emu/peek.h"
@@ -246,6 +247,7 @@ void monitor_fini() {
 
 int monitor_init() {
 	cpu_init();
+	mbc_init();
 
 	breakpoint_list = create_list();
 	if (!breakpoint_list) {
