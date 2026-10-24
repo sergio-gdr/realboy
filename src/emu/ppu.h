@@ -16,13 +16,27 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef RB_JOY_H
-#define RB_JOY_H
+#ifndef PPU_H
+#define PPU_H
 
 #include <stdint.h>
 
-// access joypad's internal state.
-uint8_t joy_rd(uint16_t addr);
-void joy_wr(uint16_t addr, uint8_t value);
+enum ppu_reg {
+	PPU_REG_LCDC = 0xff40,
+	PPU_REG_STAT = 0xff41,
+	PPU_REG_LY = 0xff44
+};
+
+// get the total number of frames since the start
+// of the emulation.
+uint64_t ppu_get_frame_count();
+
+void ppu_refresh(uint8_t ticks);
+
+// access ppu's internal state.
+uint8_t ppu_rd(uint16_t addr);
+void ppu_wr(uint16_t addr, uint8_t value);
+
+uint16_t peek_get_ppu_reg(enum ppu_reg);
 
 #endif

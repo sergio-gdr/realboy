@@ -19,6 +19,8 @@
 #ifndef JOY_H
 #define JOY_H
 
+#include <stdint.h>
+
 struct buttons {
 	bool start_released;
 	bool select_released;
@@ -29,6 +31,10 @@ struct buttons {
 	bool left_released;
 	bool right_released;
 };
+
+// access joypad's internal state.
+uint8_t joy_rd(uint16_t addr);
+void joy_wr(uint16_t addr, uint8_t value);
 
 void joy_init();
 

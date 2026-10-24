@@ -29,5 +29,7 @@ typedef struct {
 } mbc_iface_t;
 
 void mbc_wr(uint16_t addr, uint8_t value);
+uint8_t mbc_rd(uint16_t addr);
 int mbc_init();
+
 #endif

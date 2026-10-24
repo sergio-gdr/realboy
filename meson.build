@@ -10,5 +10,6 @@ project(
 
 subdir('src/backends/display/wayland/protocols')
 
-includes = include_directories(['include', 'build/src/backends/display/wayland/protocols', 'src'])
+includes = include_directories(['build/src/backends/display/wayland/protocols', 'src',
+'src/emu'])
 subdir('src')

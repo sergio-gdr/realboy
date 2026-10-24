@@ -17,13 +17,11 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "cpu.h"
 
 #include "joy.h"
-#include "mbc.h"
+#include "mem/mbc.h"
 #include "ppu.h"
 
 // main cpu structure
