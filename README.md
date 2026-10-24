@@ -31,7 +31,7 @@ Run these commands:
 In order to show how to interface directly with input event, we directly access the special files
 in `/dev/input`.
 
-Most probably you'll get a bunch of `open(): Permission denied` messages when
+Most probably you'll get the error message `open(): Permission denied` when
 running RealBoy.
 
 The simplest way to get permissions is to add your user to the `input` group:
@@ -42,3 +42,5 @@ The simplest way to get permissions is to add your user to the `input` group:
 [RealBoy Monitor]: https://github.com/sergio-gdr/realboy-mon
 [libemu]: https://github.com/sergio-gdr/libemu
 [here]: https://raw.githubusercontent.com/sergio-gdr/realboy-book/refs/heads/main/book.txt
+
+Your session must be restarted for permissions to take effect.
