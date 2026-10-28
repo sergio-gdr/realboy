@@ -26,10 +26,9 @@
 typedef struct {
 	uint8_t (*rd_mem)(uint16_t addr);
 	void (*wr_mem)(uint16_t addr, uint8_t value);
+	uint8_t *(*get_cart_hdr)();
 } mbc_iface_t;
 
-void mbc_wr(uint16_t addr, uint8_t value);
-uint8_t mbc_rd(uint16_t addr);
-int mbc_init();
+mbc_iface_t *mbc_init();
 
 #endif

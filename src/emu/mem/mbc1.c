@@ -21,8 +21,8 @@
 
 #include "mbc.h"
 
-uint8_t mbc1_rom[0x8000+(0x4000*0x1f)]; // rom+ram
-static uint8_t mbc1_ram[0x2000*4]; // rom+ram
+static uint8_t mbc1_rom[0x8000+(0x4000*0x1f)];
+static uint8_t mbc1_ram[0x2000*4];
 
 static void mbc1_wr_mem(uint16_t addr, uint8_t value) {
 	if (addr == 0xff50) {
@@ -49,7 +49,6 @@ static uint8_t mbc1_rd_mem(uint16_t addr) {
 		return mbc1_ram[addr-0xa000];
 	return mbc1_rom[addr];
 }
-
 // implement mbc_iface for mbc1
 mbc_iface_t mbc1_impl = { .rd_mem = mbc1_rd_mem, .wr_mem = mbc1_wr_mem };
 
@@ -107,6 +106,13 @@ mbc1_ram_en(int val)
 //}
 }
 
+uint8_t *get_cart_hdr() {
+	return &mbc1_rom[0x100];
+}
+
 mbc_iface_t *mbc1_init() {
+	extern FILE *rom;
+	fread(mbc1_rom, 1, 0x8000, rom);
+
 	return &mbc1_impl;
 }

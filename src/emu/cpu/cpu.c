@@ -32,6 +32,7 @@ cpu_t cpu;
 extern const uint8_t op_len[256];
 
 static uint8_t tmp_ioregs[0xffff];
+static mbc_iface_t *mbc_impl;
 
 enum tac_bitmask {
 	TAC_BITMASK_CLOCK_SELECT = 0x3,
@@ -197,7 +198,7 @@ uint8_t cpu_rd_mem(uint16_t addr) {
 	}
 
 	if (addr <= 0xbfff) {
-		return mbc_rd(addr);
+		return mbc_impl->rd_mem(addr);
 	}
 
 	if (addr == 0xff00) {
@@ -219,10 +220,10 @@ void cpu_wr_mem(uint16_t addr, uint8_t value) {
 	}
 	else if (addr == 0xff50) {
 		wr_cpu(addr, value);
-		mbc_wr(addr, value);
+		mbc_impl->wr_mem(addr, value);
 	}
 	else if (addr <= 0xbfff) {
-		mbc_wr(addr, value);
+		mbc_impl->wr_mem(addr, value);
 	}
 	else if (addr == 0xff00) {
 		joy_wr(addr, value);
@@ -306,4 +307,5 @@ void cpu_halt() {
 
 void cpu_init() {
 	REG_PC = 0x100;
+	mbc_impl = mbc_init();
 }

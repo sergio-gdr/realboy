@@ -23,6 +23,13 @@
 
 #include "mbc1.h"
 
+#define CART_TITLE_OFFSET 0x34
+#define CART_CGBFLAG_OFFSET 0x43
+#define CART_SGBFLAG_OFFSET 0x46
+#define CART_TYPE_OFFSET 0x47
+#define CART_ROMSIZE_OFFSET 0x48
+#define CART_RAMSIZE_OFFSET 0x49
+
 static mbc_iface_t *mbc_impl;
 
 const char *cart_type[] = {
@@ -64,18 +71,13 @@ const char *cart_type[] = {
 	"MBC7+SENSOR+RUMBLE+RAM+BATTERY",
 };
 
-extern uint8_t mbc1_rom[0x8000+(0x4000*0x1f)]; // XXX
-int mbc_init() {
-	extern FILE *rom;
-	fread(mbc1_rom, 1, 0x8000, rom);
-
-	mbc_impl = mbc1_init();
-	printf("Title: %s\n", &mbc1_rom[0x134]);
-	printf("CGB Support: %s\n", mbc1_rom[0x143] & 0x80 ? "Yes" : "No");
-	printf("SGB Support: %s\n", mbc1_rom[0x146] == 3 ? "Yes" : "No");
-	printf("Cart Type: %s\n", cart_type[mbc1_rom[0x147]]);
+static inline void print_cart_info(const uint8_t *cart_hdr) {
+	printf("Title: %s\n", &cart_hdr[CART_TITLE_OFFSET]);
+	printf("CGB Support: %s\n", cart_hdr[CART_CGBFLAG_OFFSET] & 0x80 ? "Yes" : "No");
+	printf("SGB Support: %s\n", cart_hdr[CART_SGBFLAG_OFFSET] == 3 ? "Yes" : "No");
+	printf("Cart Type: %s\n", cart_type[cart_hdr[CART_TYPE_OFFSET]]);
 	printf("ROM Size: ");
-	switch (mbc1_rom[0x148]) {
+	switch (cart_hdr[CART_ROMSIZE_OFFSET]) {
 		case 0:
 			printf("32KiB\n");
 			break;
@@ -107,7 +109,7 @@ int mbc_init() {
 			printf("Unknown\n");
 	}
 	printf("RAM Size: ");
-	switch (mbc1_rom[0x149]) {
+	switch (cart_hdr[CART_RAMSIZE_OFFSET]) {
 		case 0:
 			printf("No RAM\n");
 			break;
@@ -127,13 +129,13 @@ int mbc_init() {
 			printf("Unknown\n");
 	}
 
-	return 0;
 }
 
-void mbc_wr(uint16_t addr, uint8_t value) {
-	mbc_impl->wr_mem(addr, value);
-}
+mbc_iface_t *mbc_init() {
+	mbc_impl = mbc1_init();
 
-uint8_t mbc_rd(uint16_t addr) {
-	return mbc_impl->rd_mem(addr);
+	uint8_t *cart_hdr = mbc_impl->get_cart_hdr();
+	print_cart_info(cart_hdr);
+
+	return mbc_impl;
 }

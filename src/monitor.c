@@ -250,7 +250,6 @@ void monitor_fini() {
 int monitor_init() {
 	cpu_init();
 	ppu_init();
-	mbc_init();
 	joy_init();
 
 	breakpoint_list = create_list();
