@@ -49,8 +49,6 @@ static uint8_t mbc1_rd_mem(uint16_t addr) {
 		return mbc1_ram[addr-0xa000];
 	return mbc1_rom[addr];
 }
-// implement mbc_iface for mbc1
-mbc_iface_t mbc1_impl = { .rd_mem = mbc1_rd_mem, .wr_mem = mbc1_wr_mem };
 
 void
 mbc1_mode(int val)
@@ -109,6 +107,9 @@ mbc1_ram_en(int val)
 uint8_t *get_cart_hdr() {
 	return &mbc1_rom[0x100];
 }
+
+// implement mbc_iface for mbc1
+mbc_iface_t mbc1_impl = { .rd_mem = mbc1_rd_mem, .wr_mem = mbc1_wr_mem, .get_cart_hdr = get_cart_hdr };
 
 mbc_iface_t *mbc1_init() {
 	extern FILE *rom;
